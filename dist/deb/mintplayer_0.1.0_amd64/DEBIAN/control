@@ -1,0 +1,15 @@
+Package: mintplayer
+Version: 0.1.0
+Section: sound
+Priority: optional
+Architecture: amd64
+Maintainer: Darwin Sin <darwinsin@uesma.edu.ec>
+Depends: google-chrome-stable | chromium | chromium-browser
+Recommends: gstreamer1.0-plugins-base, gstreamer1.0-plugins-good
+Installed-Size: 4928
+Homepage: https://github.com/darwinsin/mintplayer
+Description: Reproductor nativo de Spotify ultra ligero para Linux Mint Cinnamon
+ MintPlayer es un reproductor nativo desacoplado construido en Rust para Linux Mint.
+ Utiliza Google Chrome con Widevine en segundo plano vía CDP para reproducir pistas
+ oficiales de Spotify sin requerir suscripción Premium, garantizando reproducción
+ estrictamente secuencial, extensiones sandboxed y almacenamiento offline en SQLite.

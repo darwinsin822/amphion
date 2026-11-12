@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="mintGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1db954" />
+      <stop offset="100%" stop-color="#14833b" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000" flood-opacity="0.45" />
+    </filter>
+  </defs>
+  <!-- Background Circle -->
+  <circle cx="128" cy="128" r="116" fill="url(#mintGrad)" filter="url(#shadow)" />
+  <!-- Inner Vinyl / Sound Ring -->
+  <circle cx="128" cy="128" r="102" fill="none" stroke="#ffffff" stroke-width="3" stroke-opacity="0.2" />
+  <circle cx="128" cy="128" r="76" fill="none" stroke="#ffffff" stroke-width="2" stroke-opacity="0.15" />
+  <!-- Mint Leaf & Spotify Waves Hybrid -->
+  <path d="M72 172c36-8 72-4 104 14" fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round" />
+  <path d="M60 134c44-12 88-7 128 16" fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round" />
+  <path d="M52 94c52-16 106-11 152 18" fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round" />
+</svg>
