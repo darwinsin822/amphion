@@ -536,6 +536,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-tungstenite",
+ "url",
 ]
 
 [[package]]

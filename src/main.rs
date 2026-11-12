@@ -1,4 +1,6 @@
+mod api;
 mod cdp;
+mod queue;
 
 use anyhow::Result;
 use cdp::{ChromeProcess, CdpSession, find_or_create_spotify_tab};
