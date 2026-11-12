@@ -1,5 +1,6 @@
 mod api;
 mod cdp;
+mod extensions;
 mod queue;
 mod server;
 
