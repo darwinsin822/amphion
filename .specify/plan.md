@@ -1,42 +1,57 @@
 # Plan Técnico y Hoja de Ruta — MintPlayer
 
-- **Objetivo en 1 frase:** Construir un reproductor nativo de Spotify ultra ligero para Linux Mint Cinnamon en Rust y GTK4, desacoplado mediante Chrome headless (CDP/Widevine) con cola estricta en orden, extensiones sandboxed y entregable en paquete `.deb`.
+- **Proyecto:** MintPlayer
+- **Objetivo en 1 frase:** Construir un reproductor de Spotify para Linux Mint Cinnamon en Rust, desacoplado mediante Chrome headless (CDP/Widevine) con cola estricta en orden, extensiones sandboxed y empaquetado final en `.deb`.
 - **Modo Atenea:** FULL SPEC (PERA + SDD + ODD).
-- **Entorno Identificado:** Linux Mint Cinnamon (amd64), Rust 1.98.1, Cargo 1.98.1, Google Chrome 157 (Widevine OK).
+- **Entorno:** Linux Mint Cinnamon (amd64), Rust 1.98.1, Cargo 1.98.1, Google Chrome 157 (Widevine integrado).
 - **Ruta de Trabajo:** `/home/darwinsin/.gemini/antigravity/scratch/mintplayer`
 
 ---
 
-## Fases de Ejecución (Secuenciales)
+## Decisiones de Arquitectura Consolidadas (Modelo Orpheon / MySpoti)
+1. **Autenticación Delegada e Inyección de Puente:**
+   - No se solicitan ni almacenan contraseñas de Spotify.
+   - El inicio de sesión se realiza en la página oficial (`open.spotify.com`).
+   - El puente inyectado (`bridge.js`) extrae el token legítimo de `TokenProvider` mediante el árbol de React, eliminando la necesidad de que el usuario configure un Client ID o una App de Desarrollador en Spotify.
+2. **Control de Reproducción Desacoplado:**
+   - La app host emite órdenes sobre `PlayerAPI` del Web Player vía CDP (`play`, `pause`, `resume`, `skipToNext`, `skipToPrevious`).
+   - Se elude la restricción de cuenta Premium de la Web API REST.
+3. **Cola Estricta en Orden:**
+   - La cola de reproducción es gestionada por la app local.
+   - Si el Web Player intenta forzar modo aleatorio (comportamiento gratuito de Spotify), la app intercepta el cambio y fuerza la siguiente pista en orden secuencial exacto.
 
-### Fase 0 — Núcleo de Reproducción y Control CDP (Gate 1 → Gate 3)
-- [ ] Configuración del proyecto Cargo (`Cargo.toml`) con dependencias base (async runtime Tokio, CDP/headless Chrome controller, keyring/libsecret, HTTP client).
-- [ ] Flujo OAuth 2.0 PKCE con la Web API de Spotify (guía paso a paso para Client ID y redirect local).
-- [ ] Lanzador y controlador headless de Google Chrome conectado al Web Player (`open.spotify.com`).
-- [ ] Enlace CDP para ejecutar acciones de reproducción (play, pause, next, track info) sin requerir cuenta Premium.
-- [ ] Verificación empírica: reproducir pista específica en orden con cuenta gratuita.
+---
 
-### Fase 1 — Interfaz Nativa GTK4/libadwaita y Cola de Reproducción
-- [ ] Ventana principal integrada con temas Cinnamon / Adwaita.
-- [ ] Vistas: Inicio, Búsqueda, Biblioteca, Playlists, Artistas y Álbumes consumiendo la Web API.
-- [ ] Gestor de Cola de reproducción estricta (reordenable, sin shuffle obligatorio de cuentas gratuitas, corrector automático de saltos).
-- [ ] Verificación empírica: reproducir una playlist completa en orden de inicio a fin.
+## Fases de Construcción y Compuertas (Gate 1 a Gate 6)
+
+### Fase 0 — Núcleo CDP y Extracción de Token (Compuerta Gate 3)
+- [x] Repositorio Git inicializado con especificaciones SDD en `.specify/`.
+- [x] Conexión CDP asíncrona en Rust (`src/cdp.rs`) con WebSockets y `rustls`.
+- [x] Puente JavaScript inyectable (`src/bridge.js`) para `TokenProvider` y `PlayerAPI`.
+- [ ] Binario ejecutable compilado con soporte para modo `--login` (ventana visual) y `--headless` (segundo plano).
+- [ ] Prueba de ejecución de verificación (exit 0).
+
+### Fase 1 — Interfaz y Gestión de Biblioteca (Compuerta Gate 4)
+- [ ] Interfaz nativa optimizada para Cinnamon (Cinnamon Dark Theme / Adwaita).
+- [ ] Vistas principales: Inicio, Explorar/Búsqueda, Biblioteca, Playlists, Artistas y Álbumes.
+- [ ] Gestor de Cola de reproducción estricta (reordenar canciones, avance automático sin shuffle).
+- [ ] Panel de control inferior: controles de reproducción, barra de progreso y carátula.
 
 ### Fase 2 — Motor de Extensiones Sandboxed
-- [ ] Sandbox de ejecución aislado (QuickJS runtime incrustado en Rust).
-- [ ] Especificación de manifiesto (`manifest.json`) y modelo de permisos declarativos.
-- [ ] API de extensiones expuesta: `provideAudio()`, `provideDownload()`, `provideLyrics()`, `onTrackChange()`.
-- [ ] Extensión de ejemplo funcional (fuente de letras / fuente alternativa).
+- [ ] Sandbox de extensiones aislado en QuickJS / JavaScript seguro.
+- [ ] Especificación de manifiesto (`manifest.json`) con permisos explícitos aprobados por el usuario.
+- [ ] API expuesta: `provideAudio()`, `provideDownload()`, `provideLyrics()`, `onTrackChange()`.
+- [ ] Extensión de ejemplo funcional (fuente de letras y fuentes alternativas).
 
-### Fase 3 — Descargas Offline, SQLite y Bloqueo de Anuncios
-- [ ] Base de datos SQLite para indexación local y metadata offline.
-- [ ] Gestor de descargas asíncronas con verificación de duración de audio y soporte GStreamer/ffmpeg.
+### Fase 3 — Descargas Offline y Módulo de Anuncios
+- [ ] Base de datos SQLite para metadatos locales y biblioteca offline.
+- [ ] Gestor de descargas con cola, verificación de duración y soporte de audio local.
 - [ ] Sincronización automática de playlists descargadas.
-- [ ] Módulo opcional de bloqueo de anuncios (desactivado por defecto, advertencia TOS explícita, detección vía CDP + filtro de red).
+- [ ] Módulo opcional de bloqueo de anuncios (desactivado por defecto, advertencia TOS visible).
 
-### Fase 4 — Integración con Linux Mint Cinnamon y Empaquetado .deb
-- [ ] Integración MPRIS (teclas multimedia, OSD, control de bloqueo) y bandeja del sistema.
-- [ ] Soporte de letras sincronizadas (LRCLIB) y ecualizador local.
-- [ ] Auditoría de recursos: arranque en frío < 1 segundo, consumo mínimo de RAM.
-- [ ] Estructura debian (`DEBIAN/control`, `.desktop`, iconos de alta resolución, dependencias apt).
-- [ ] Generación y prueba de instalación del paquete `mintplayer_0.1.0_amd64.deb`.
+### Fase 4 — Pulido e Instalador .deb para Linux Mint
+- [ ] Integración de sistema: MPRIS (teclas multimedia, OSD Cinnamon) e icono en bandeja.
+- [ ] Verificación de métricas de rendimiento (arranque < 1s, consumo bajo de RAM).
+- [ ] Generación de estructura Debian (`DEBIAN/control`, `.desktop`, iconos PNG).
+- [ ] Empaquetado binario `mintplayer_0.1.0_amd64.deb` mediante `dpkg-deb`.
+- [ ] Verificación de instalación limpia.
