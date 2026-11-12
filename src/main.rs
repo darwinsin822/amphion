@@ -1,47 +1,67 @@
 mod api;
 mod cdp;
 mod queue;
+mod server;
 
 use anyhow::Result;
 use cdp::{ChromeProcess, CdpSession, find_or_create_spotify_tab};
+use queue::QueueManager;
+use server::{AppState, run_server};
+use std::process::Command;
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::Mutex;
 
 const BRIDGE_JS: &str = include_str!("bridge.js");
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🎵 MintPlayer - Reproductor nativo de Spotify (Linux Mint Cinnamon)");
-    println!("==================================================================");
+    println!("🎵 MintPlayer v0.1.0 — Spotify para Linux Mint Cinnamon");
+    println!("========================================================");
 
     let args: Vec<String> = std::env::args().collect();
     let is_login_mode = args.iter().any(|a| a == "--login" || a == "-l");
+    let is_daemon = args.iter().any(|a| a == "--daemon" || a == "-d");
 
-    let port = 9222;
+    let queue = Arc::new(Mutex::new(QueueManager::new()));
+    let app_state = Arc::new(Mutex::new(AppState {
+        api: None,
+        cdp: None,
+        queue: Arc::clone(&queue),
+        is_playing: false,
+        adblock_enabled: false,
+    }));
+
+    // Iniciar servidor web local en puerto 4567
+    let server_state = Arc::clone(&app_state);
+    tokio::spawn(async move {
+        let _ = run_server(4567, server_state).await;
+    });
+
+    let cdp_port = 9222;
     let headless = !is_login_mode;
 
-    println!("🚀 Iniciando motor Chrome (headless: {}, puerto: {})...", headless, port);
-    if is_login_mode {
-        println!("💡 Modo Login activo: Chrome se abrirá en pantalla para que inicies sesión.");
-    }
+    println!("🚀 [1/3] Iniciando motor de reproducción Chrome (headless: {}, puerto: {})...", headless, cdp_port);
+    let _chrome = ChromeProcess::spawn(cdp_port, headless)?;
 
-    let _chrome = ChromeProcess::spawn(port, headless)?;
-
-    // Esperar brevemente a que el Web Player cargue
     tokio::time::sleep(Duration::from_secs(2)).await;
 
-    println!("🔍 Conectando con la pestaña del Web Player...");
-    let ws_url = find_or_create_spotify_tab(port).await?;
+    println!("🔍 [2/3] Conectando con la pestaña del Web Player de Spotify...");
+    let ws_url = find_or_create_spotify_tab(cdp_port).await?;
     println!("✅ Enlazado por CDP: {}", ws_url);
 
     let session = CdpSession::connect(&ws_url).await?;
-    println!("💉 Inyectando puente MintPlayer (player-bridge)...");
-
+    println!("💉 [3/3] Inyectando puente Web Player MintPlayer...");
     session.evaluate(BRIDGE_JS, false).await?;
 
-    println!("⏳ Esperando a que el Web Player inicialice sus servicios...");
-    let mut authenticated = false;
-    for _i in 1..=15 {
-        tokio::time::sleep(Duration::from_secs(1)).await;
+    {
+        let mut st = app_state.lock().await;
+        st.cdp = Some(Arc::clone(&session));
+    }
+
+    // Comprobar token en bucle corto
+    for _i in 1..=5 {
+        tokio::time::sleep(Duration::from_millis(800)).await;
         let token_eval = session.evaluate(
             "window.MintPlayer && window.MintPlayer.getToken ? window.MintPlayer.getToken() : null",
             true
@@ -51,30 +71,30 @@ async fn main() -> Result<()> {
             if let Some(obj) = val.get("value") {
                 if let Some(token) = obj.get("accessToken").and_then(|t| t.as_str()) {
                     let is_anon = obj.get("isAnonymous").and_then(|a| a.as_bool()).unwrap_or(true);
-                    println!("\n🎉 ¡Sesión Web Player detectada!");
-                    println!("🔑 Token de acceso: {}...{}", &token[..12], &token[token.len()-6..]);
-                    println!("👤 Anónimo: {}", is_anon);
-
-                    if !is_anon {
-                        println!("✨ Usuario autenticado correctamente con Spotify.");
-                        authenticated = true;
-                        break;
-                    } else {
-                        println!("⚠️ Sesión anónima (aún no iniciaste sesión en Spotify).");
-                        println!("👉 Ejecuta 'cargo run -- --login' para iniciar sesión en la ventana de Chrome.");
-                        break;
-                    }
+                    println!("🔑 Token detectado: {}...{} (Anónimo: {})", &token[..8], &token[token.len()-4..], is_anon);
+                    let mut st = app_state.lock().await;
+                    st.api = Some(api::SpotifyApi::new(token.to_string()));
+                    break;
                 }
             }
         }
-        print!(".");
-        let _ = std::io::Write::flush(&mut std::io::stdout());
     }
 
-    if !authenticated && !is_login_mode {
-        println!("\nTip: Si es tu primera vez, ejecuta 'mintplayer --login' para abrir Spotify y autenticarte una sola vez.");
+    println!("\n🖥️ Interfaz nativa lista en: http://127.0.0.1:4567");
+
+    if !is_daemon && !is_login_mode {
+        println!("🪟 Abriendo ventana de MintPlayer en Cinnamon...");
+        let _ = Command::new("google-chrome")
+            .arg("--app=http://127.0.0.1:4567")
+            .arg("--class=mintplayer")
+            .arg("--name=mintplayer")
+            .spawn();
     }
 
-    println!("\nCompuerta Gate 3 (Núcleo CDP): Listo.");
+    println!("🎶 MintPlayer activo. Presiona Ctrl+C para salir.");
+    // Mantener proceso vivo
+    tokio::signal::ctrl_c().await?;
+    println!("\nCerrando MintPlayer...");
+
     Ok(())
 }
