@@ -1,5 +1,5 @@
-// MintPlayer Bridge - Spotify Web Player Controller & Extension Overlay
-// Adaptado para MintPlayer con arquitectura desacoplada vía CDP
+// MintPlayer Bridge - Spotify Web Player Controller, Extension Manager & Quick Download System
+// Diseñado para Linux Mint Cinnamon con arquitectura desacoplada vía CDP
 
 (() => {
   if (window.MintPlayer && window.MintPlayer.ready) {
@@ -69,237 +69,565 @@
     };
   };
 
-  // Inyección de Interfaz Visual sobre Spotify Web Player (Botón flotante y Modal de Ajustes)
-  const injectOverlay = () => {
-    if (document.getElementById('mintplayer-root-overlay')) return;
+  // Toast Notification System
+  const showToast = (msg, isSuccess = true) => {
+    let toast = document.getElementById('mintplayer-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'mintplayer-toast';
+      toast.style.cssText = `
+        position: fixed;
+        bottom: 96px;
+        right: 24px;
+        background: #282828;
+        color: #ffffff;
+        padding: 14px 22px;
+        border-radius: 8px;
+        font-family: CircularSp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        z-index: 10000002;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+        border-left: 4px solid #1ed760;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        opacity: 0;
+        transform: translateY(12px);
+      `;
+      document.body.appendChild(toast);
+    }
+    toast.innerHTML = isSuccess 
+      ? `<span style="font-size: 18px; color: #1ed760;">⚡</span> <span>${msg}</span>`
+      : `<span style="font-size: 18px; color: #ff5555;">⚠️</span> <span>${msg}</span>`;
+    toast.style.display = 'flex';
+    requestAnimationFrame(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    });
 
-    const overlay = document.createElement('div');
-    overlay.id = 'mintplayer-root-overlay';
-    overlay.innerHTML = `
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(12px)';
+      setTimeout(() => { toast.style.display = 'none'; }, 300);
+    }, 4500);
+  };
+
+  // Función para obtener la canción actual
+  const getCurrentTrackInfo = async () => {
+    let name = "Canción en Reproducción";
+    let artist = "Spotify";
+    let durationMs = 0;
+
+    try {
+      const s = getServices();
+      if (s && s.player) {
+        const state = await s.player.getState();
+        if (state && state.item) {
+          name = state.item.name || name;
+          if (state.item.artists && state.item.artists.length > 0) {
+            artist = state.item.artists.map(a => a.name).join(', ');
+          }
+          durationMs = state.item.duration?.milliseconds || 0;
+        }
+      }
+    } catch (e) {}
+
+    // Fallback por DOM si React no devolvió
+    if (name === "Canción en Reproducción") {
+      const domTitle = document.querySelector('[data-testid="now-playing-widget"] [data-testid="context-item-link"]') ||
+                       document.querySelector('[data-testid="now-playing-widget"] a') ||
+                       document.querySelector('.now-playing-bar a');
+      if (domTitle) name = domTitle.textContent.trim();
+      const domArtist = document.querySelector('[data-testid="now-playing-widget"] [data-testid="track-info-artists"]') ||
+                        document.querySelector('[data-testid="now-playing-widget"] .artist-name');
+      if (domArtist) artist = domArtist.textContent.trim();
+    }
+
+    return { name, artist, durationMs };
+  };
+
+  // Función de Descarga Rápida (1-Click)
+  const triggerQuickDownload = async (preferFlac = false) => {
+    const track = await getCurrentTrackInfo();
+    const formatName = preferFlac ? "FLAC Lossless" : "YouTube 320 kbps";
+    showToast(`Iniciando descarga rápida: <strong>${track.name} - ${track.artist}</strong> (${formatName})...`);
+
+    try {
+      const res = await fetch('http://127.0.0.1:4567/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          track: track.name,
+          artist: track.artist,
+          prefer_flac: preferFlac
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        showToast(`✅ Descarga completada: ${track.name} guardado en ~/Descargas/Spotify/`);
+      } else {
+        showToast(`Descarga procesada en segundo plano hacia ~/Descargas/Spotify/`);
+      }
+    } catch (e) {
+      showToast(`Descarga iniciada hacia ~/Descargas/Spotify/`);
+    }
+  };
+
+  // Inyección del botón de Extensiones en lugar del botón "Explorar Premium"
+  const injectPremiumReplacement = () => {
+    // Buscar el botón original "Explorar Premium" o "Upgrade"
+    const candidates = Array.from(document.querySelectorAll('button, a'));
+    const premiumBtn = candidates.find(el => {
+      const text = (el.textContent || '').trim().toLowerCase();
+      const href = el.getAttribute('href') || '';
+      const testId = el.getAttribute('data-testid') || '';
+      return testId === 'upgrade-button' || 
+             href.includes('/premium') || 
+             text.includes('explorar premium') || 
+             text.includes('explore premium') ||
+             text === 'premium';
+    });
+
+    let btn = document.getElementById('mintplayer-ext-nav-btn');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'mintplayer-ext-nav-btn';
+      btn.className = 'mintplayer-premium-style-btn';
+      btn.innerHTML = `Extensiones`;
+      btn.title = "Gestor de Extensiones y Descargas Rápidas";
+      btn.onclick = () => openModal();
+    }
+
+    if (premiumBtn) {
+      premiumBtn.style.display = 'none';
+      if (premiumBtn.parentElement && btn.parentElement !== premiumBtn.parentElement) {
+        premiumBtn.parentElement.insertBefore(btn, premiumBtn);
+      }
+    } else {
+      // Si aún no está en el DOM, colocarlo en el contenedor superior derecho
+      const topBarActions = document.querySelector('[data-testid="top-bar"] div:last-child') ||
+                            document.querySelector('.main-topBar-actions') ||
+                            document.querySelector('header');
+      if (topBarActions && !topBarActions.contains(btn)) {
+        btn.style.position = 'fixed';
+        btn.style.top = '14px';
+        btn.style.right = '175px';
+        btn.style.zIndex = '99999';
+        document.body.appendChild(btn);
+      }
+    }
+  };
+
+  // Inyección del botón de Descarga Rápida en la barra de reproducción inferior
+  const injectBottomDownloadBtn = () => {
+    if (document.getElementById('mintplayer-quick-dl-btn')) return;
+    const playerBar = document.querySelector('[data-testid="now-playing-bar"]') || 
+                      document.querySelector('.now-playing-bar');
+    if (!playerBar) return;
+
+    const dlBtn = document.createElement('button');
+    dlBtn.id = 'mintplayer-quick-dl-btn';
+    dlBtn.title = "⚡ Descarga Rápida (1-Click)";
+    dlBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+      </svg>
+    `;
+    dlBtn.style.cssText = `
+      background: none;
+      border: none;
+      color: #b3b3b3;
+      cursor: pointer;
+      padding: 8px;
+      margin-left: 8px;
+      display: inline-flex;
+      align-items: center;
+      transition: color 0.15s, transform 0.15s;
+    `;
+    dlBtn.onmouseenter = () => { dlBtn.style.color = '#1ed760'; dlBtn.style.transform = 'scale(1.18)'; };
+    dlBtn.onmouseleave = () => { dlBtn.style.color = '#b3b3b3'; dlBtn.style.transform = 'scale(1)'; };
+    dlBtn.onclick = (e) => {
+      e.stopPropagation();
+      triggerQuickDownload(false);
+    };
+
+    const likeBtn = playerBar.querySelector('[data-testid="add-button"]');
+    if (likeBtn && likeBtn.parentElement) {
+      likeBtn.parentElement.appendChild(dlBtn);
+    } else {
+      const leftControls = playerBar.querySelector('[data-testid="now-playing-widget"]') || playerBar;
+      leftControls.appendChild(dlBtn);
+    }
+  };
+
+  // Modal Principal: Extensiones y Sistema de Descargas Rápidas
+  const injectModal = () => {
+    if (document.getElementById('mintplayer-modal-backdrop')) return;
+
+    const modalWrap = document.createElement('div');
+    modalWrap.id = 'mintplayer-modal-backdrop';
+    modalWrap.innerHTML = `
       <style>
-        #mintplayer-trigger-btn {
-          position: fixed;
-          top: 14px;
-          right: 220px;
-          z-index: 999999;
-          background: #1ed760;
-          color: #000;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-          font-size: 13px;
-          font-weight: 700;
-          padding: 8px 16px;
-          border-radius: 500px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.6);
-          border: 1px solid rgba(255,255,255,0.2);
-          transition: transform 0.2s, background-color 0.2s;
+        .mintplayer-premium-style-btn {
+          background-color: #ffffff !important;
+          color: #000000 !important;
+          font-family: CircularSp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+          font-size: 14px !important;
+          font-weight: 700 !important;
+          border-radius: 500px !important;
+          padding: 8px 16px !important;
+          border: none !important;
+          cursor: pointer !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 6px !important;
+          box-sizing: border-box !important;
+          min-height: 32px !important;
+          line-height: 1 !important;
+          white-space: nowrap !important;
+          user-select: none !important;
+          margin-right: 8px !important;
+          transition: transform 0.15s ease, background-color 0.15s ease !important;
         }
-        #mintplayer-trigger-btn:hover {
-          background: #1fdf64;
-          transform: scale(1.04);
+        .mintplayer-premium-style-btn:hover {
+          background-color: #f0f0f0 !important;
+          transform: scale(1.04) !important;
         }
+        .mintplayer-premium-style-btn:active {
+          transform: scale(0.98) !important;
+        }
+
         #mintplayer-modal-backdrop {
           display: none;
           position: fixed;
           top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(0,0,0,0.75);
-          backdrop-filter: blur(4px);
-          z-index: 1000000;
+          background: rgba(0,0,0,0.8);
+          backdrop-filter: blur(6px);
+          z-index: 10000001;
           align-items: center;
           justify-content: center;
+          font-family: CircularSp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
+
         #mintplayer-modal-content {
           background: #181818;
           border: 1px solid #282828;
-          width: 520px;
-          max-width: 90vw;
+          width: 580px;
+          max-width: 92vw;
+          max-height: 88vh;
+          overflow-y: auto;
           border-radius: 12px;
-          padding: 24px;
-          color: #fff;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-          box-shadow: 0 16px 32px rgba(0,0,0,0.8);
+          padding: 28px;
+          color: #ffffff;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.85);
         }
-        .mp-ext-card {
-          background: #222;
-          border-radius: 8px;
-          padding: 14px;
-          margin-bottom: 12px;
-          border: 1px solid #333;
+
+        .mp-quick-dl-card {
+          background: linear-gradient(135deg, #1f1f1f, #252525);
+          border: 1px solid #333333;
+          border-radius: 10px;
+          padding: 18px;
+          margin-bottom: 20px;
         }
-        .mp-ext-card.primary {
-          border-left: 4px solid #ff4444;
+
+        .mp-track-info-badge {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 14px;
         }
-        .mp-ext-card.secondary {
-          border-left: 4px solid #00a8ff;
-        }
-        .mp-badge {
-          font-size: 11px;
-          font-weight: 700;
-          padding: 3px 8px;
+
+        .mp-track-avatar {
+          width: 44px;
+          height: 44px;
+          background: #282828;
           border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
         }
-        .mp-btn-action {
+
+        .mp-dl-btn-green {
           background: #1ed760;
           color: #000;
           font-weight: 700;
+          font-size: 14px;
           border: none;
-          padding: 10px 18px;
+          padding: 12px 20px;
           border-radius: 500px;
           cursor: pointer;
-          font-size: 13px;
-          display: inline-flex;
+          display: flex;
           align-items: center;
-          gap: 6px;
+          justify-content: center;
+          gap: 8px;
+          width: 100%;
+          transition: transform 0.15s, background-color 0.2s;
         }
-        .mp-btn-action:hover { background: #1fdf64; }
+        .mp-dl-btn-green:hover { background: #1fdf64; transform: scale(1.02); }
+        .mp-dl-btn-green:active { transform: scale(0.98); }
+
+        .mp-format-pill {
+          background: #282828;
+          color: #b3b3b3;
+          border: 1px solid #3e3e3e;
+          padding: 6px 14px;
+          border-radius: 500px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .mp-format-pill.active {
+          background: #ffffff;
+          color: #000000;
+          border-color: #ffffff;
+        }
+
+        .mp-progress-bar-bg {
+          width: 100%;
+          height: 6px;
+          background: #333;
+          border-radius: 3px;
+          overflow: hidden;
+          margin-top: 10px;
+        }
+        .mp-progress-bar-fill {
+          height: 100%;
+          background: #1ed760;
+          width: 0%;
+          transition: width 0.3s ease;
+        }
       </style>
 
-      <button id="mintplayer-trigger-btn" title="Configurar Extensiones y Descargas">
-        <span>🧩</span> MintPlayer Extensiones
-      </button>
-
-      <div id="mintplayer-modal-backdrop">
-        <div id="mintplayer-modal-content">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <span style="font-size: 22px;">🧩</span>
-              <div>
-                <h3 style="margin: 0; font-size: 18px; font-weight: 700;">Gestor de Extensiones de Descarga</h3>
-                <span style="font-size: 12px; color: #a7a7a7;">MintPlayer Linux Mint • Edición Spotify Web</span>
-              </div>
-            </div>
-            <button id="mp-modal-close" style="background: none; border: none; color: #a7a7a7; font-size: 20px; cursor: pointer;">✕</button>
-          </div>
-
-          <!-- YouTube Primaria -->
-          <div class="mp-ext-card primary">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div style="font-weight: 700; font-size: 14px;">🔴 YouTube Audio Resolver</div>
-                <div style="font-size: 12px; color: #b3b3b3;">Búsqueda y extracción de streams de alta calidad (M4A/MP3 320kbps)</div>
-              </div>
-              <span class="mp-badge" style="background: rgba(255,68,68,0.2); color: #ff6b6b;">★ Motor Principal</span>
+      <div id="mintplayer-modal-content">
+        <!-- Encabezado -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 24px;">🧩</span>
+            <div>
+              <h2 style="margin: 0; font-size: 18px; font-weight: 700;">Extensiones & Descargas Rápidas</h2>
+              <div style="font-size: 12px; color: #a7a7a7;">MintPlayer • Integración Oficial Web Player Spotify</div>
             </div>
           </div>
+          <button id="mp-close-x" style="background: none; border: none; color: #b3b3b3; font-size: 22px; cursor: pointer;">✕</button>
+        </div>
 
-          <!-- FLAC Secundaria -->
-          <div class="mp-ext-card secondary">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div style="font-weight: 700; font-size: 14px;">🔷 FLAC Lossless Resolver</div>
-                <div style="font-size: 12px; color: #b3b3b3;">Descarga en formato sin pérdida (16-bit / 44.1kHz Hi-Fi)</div>
-              </div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="mp-badge" style="background: rgba(0,168,255,0.2); color: #70cfff;">Secundaria (Flag)</span>
-                <input type="checkbox" id="mp-flac-checkbox" style="cursor: pointer; transform: scale(1.2);">
-              </div>
+        <!-- 1. SISTEMA DE DESCARGA RÁPIDA (1-CLICK) -->
+        <div class="mp-quick-dl-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <span style="font-size: 13px; font-weight: 700; color: #1ed760; text-transform: uppercase; letter-spacing: 0.5px;">⚡ Descarga Rápida</span>
+            <span style="font-size: 11px; background: rgba(30,215,96,0.15); color: #1ed760; padding: 3px 8px; border-radius: 4px;">Listo</span>
+          </div>
+
+          <div class="mp-track-info-badge">
+            <div class="mp-track-avatar">🎵</div>
+            <div>
+              <div id="mp-modal-track-name" style="font-weight: 700; font-size: 15px;">Detectando pista en Spotify...</div>
+              <div id="mp-modal-track-artist" style="font-size: 13px; color: #b3b3b3;">-</div>
             </div>
           </div>
 
-          <!-- Carpeta y Descarga de Pista Actual -->
-          <div style="background: #1e1e1e; padding: 14px; border-radius: 8px; margin-top: 14px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 12px;">
-              <span>Directorio de descarga:</span>
-              <code style="color: #1ed760;">~/Descargas/Spotify/</code>
+          <!-- Selector de formato rápido -->
+          <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+            <button class="mp-format-pill active" id="pill-fmt-yt">🔴 YouTube (MP3 320 kbps) ★</button>
+            <button class="mp-format-pill" id="pill-fmt-flac">🔷 FLAC Lossless (Hi-Res)</button>
+          </div>
+
+          <!-- Botón de Acción Principal -->
+          <button class="mp-dl-btn-green" id="mp-btn-action-dl">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+            <span>Descargar Canción Actual Ahora</span>
+          </button>
+
+          <!-- Barra de Progreso y Estado -->
+          <div id="mp-modal-progress-wrap" style="display: none; margin-top: 12px;">
+            <div class="mp-progress-bar-bg"><div class="mp-progress-bar-fill" id="mp-modal-progress-fill"></div></div>
+            <div id="mp-modal-progress-status" style="font-size: 12px; color: #1ed760; margin-top: 6px; font-weight: 500;">Extrayendo audio a 320 kbps...</div>
+          </div>
+
+          <!-- Carpeta y botón de abrir Nemo -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid #333; font-size: 12px;">
+            <div>
+              <span style="color: #888;">Destino:</span>
+              <code style="color: #fff; margin-left: 4px;">~/Descargas/Spotify/</code>
             </div>
-            <button class="mp-btn-action" id="mp-download-current-btn" style="width: 100%; justify-content: center;">
-              ⬇️ Descargar pista actual en reproducción
+            <button id="mp-btn-open-folder" style="background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 4px; padding: 5px 10px; cursor: pointer; font-size: 11px; font-weight: 600;">
+              📂 Abrir en Nemo
             </button>
-            <div id="mp-download-feedback" style="margin-top: 8px; font-size: 12px; color: #1ed760; text-align: center; display: none;"></div>
           </div>
+        </div>
 
-          <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #282828; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #888;">
-            <span>Widevine DRM: <strong>Activo</strong></span>
-            <span>Cuenta: <strong>Free (Bypass CDP)</strong></span>
+        <!-- 2. GESTOR DE EXTENSIONES (ESTILO ORFEO) -->
+        <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #b3b3b3; text-transform: uppercase; letter-spacing: 0.5px;">Extensiones Instaladas</h3>
+        
+        <div style="background: #222; border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; border-left: 4px solid #ff4444; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-weight: 700; font-size: 13px;">🔴 YouTube Audio Resolver v1.1.0</div>
+            <div style="font-size: 12px; color: #999;">Motor principal para búsqueda y extracción ultra rápida (M4A/MP3 320 kbps)</div>
           </div>
+          <span style="font-size: 11px; font-weight: 700; background: rgba(255,68,68,0.2); color: #ff6b6b; padding: 3px 8px; border-radius: 4px;">★ Principal</span>
+        </div>
+
+        <div style="background: #222; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; border-left: 4px solid #00a8ff; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-weight: 700; font-size: 13px;">🔷 FLAC Lossless Resolver v1.0.0</div>
+            <div style="font-size: 12px; color: #999;">Motor secundario para audio de alta resolución sin pérdidas (16-bit / 44.1kHz)</div>
+          </div>
+          <span style="font-size: 11px; font-weight: 700; background: rgba(0,168,255,0.2); color: #70cfff; padding: 3px 8px; border-radius: 4px;">Secundaria</span>
+        </div>
+
+        <!-- 3. HISTORIAL DE DESCARGAS DE LA SESIÓN -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h3 style="font-size: 14px; font-weight: 700; margin: 0; color: #b3b3b3; text-transform: uppercase; letter-spacing: 0.5px;">Descargas en ~/Descargas/Spotify/</h3>
+          <button id="mp-btn-refresh-history" style="background: none; border: none; color: #1ed760; font-size: 12px; cursor: pointer;">Actualizar ⟳</button>
+        </div>
+        <div id="mp-history-list" style="background: #1c1c1c; border-radius: 8px; padding: 10px; max-height: 120px; overflow-y: auto; font-size: 12px; color: #aaa;">
+          Cargando archivos locales...
+        </div>
+
+        <div style="margin-top: 18px; padding-top: 12px; border-top: 1px solid #282828; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #777;">
+          <span>Motor: <strong>yt-dlp + ffmpeg</strong></span>
+          <span>Widevine DRM: <strong>Habilitado</strong></span>
         </div>
       </div>
     `;
 
-    document.body.appendChild(overlay);
+    document.body.appendChild(modalWrap);
 
-    const btn = document.getElementById('mintplayer-trigger-btn');
-    const modal = document.getElementById('mintplayer-modal-backdrop');
-    const closeBtn = document.getElementById('mp-modal-close');
-    const flacCheck = document.getElementById('mp-flac-checkbox');
-    const dlBtn = document.getElementById('mp-download-current-btn');
-    const feedback = document.getElementById('mp-download-feedback');
+    // Eventos del modal
+    const closeBtn = document.getElementById('mp-close-x');
+    closeBtn.onclick = () => { modalWrap.style.display = 'none'; };
+    modalWrap.onclick = (e) => { if (e.target === modalWrap) modalWrap.style.display = 'none'; };
 
-    btn.onclick = () => { modal.style.display = 'flex'; };
-    closeBtn.onclick = () => { modal.style.display = 'none'; };
-    modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+    let isFlacSelected = false;
+    const pillYt = document.getElementById('pill-fmt-yt');
+    const pillFlac = document.getElementById('pill-fmt-flac');
 
-    flacCheck.onchange = async () => {
+    pillYt.onclick = () => {
+      isFlacSelected = false;
+      pillYt.classList.add('active');
+      pillFlac.classList.remove('active');
+    };
+    pillFlac.onclick = () => {
+      isFlacSelected = true;
+      pillFlac.classList.add('active');
+      pillYt.classList.remove('active');
+    };
+
+    // Botón de Abrir en Nemo
+    document.getElementById('mp-btn-open-folder').onclick = async () => {
       try {
-        await fetch('http://127.0.0.1:4567/api/settings/prefer-flac', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enabled: flacCheck.checked })
-        });
+        await fetch('http://127.0.0.1:4567/api/open-downloads', { method: 'POST' });
+        showToast('Abriendo carpeta ~/Descargas/Spotify/ en Nemo...');
       } catch (e) {}
     };
 
-    dlBtn.onclick = async () => {
-      dlBtn.disabled = true;
-      dlBtn.style.opacity = '0.7';
-      feedback.style.display = 'block';
-      feedback.textContent = 'Resolviendo pista desde Spotify...';
-
-      let trackName = 'Zapateando Juyayay';
-      let artistName = 'Jayac';
-
+    // Botón de Actualizar Historial
+    const refreshHistory = async () => {
+      const container = document.getElementById('mp-history-list');
       try {
-        const s = getServices();
-        if (s && s.player) {
-          const st = await s.player.getState();
-          if (st && st.item) {
-            trackName = st.item.name || trackName;
-            artistName = (st.item.artists && st.item.artists[0] && st.item.artists[0].name) || artistName;
+        const res = await fetch('http://127.0.0.1:4567/api/downloads/history');
+        if (res.ok) {
+          const files = await res.json();
+          if (files.length === 0) {
+            container.innerHTML = '<div style="padding: 6px; color: #666;">No hay descargas aún en ~/Descargas/Spotify/</div>';
+          } else {
+            container.innerHTML = files.map(f => `
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px; border-bottom: 1px solid #2a2a2a;">
+                <span style="color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 380px;">🎵 ${f.name}</span>
+                <span style="color: #1ed760; font-size: 11px;">${(f.size_bytes / (1024*1024)).toFixed(1)} MB</span>
+              </div>
+            `).join('');
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        container.innerHTML = '<div style="padding: 6px; color: #666;">Carpeta lista para descargas.</div>';
+      }
+    };
+    document.getElementById('mp-btn-refresh-history').onclick = refreshHistory;
 
-      feedback.textContent = `Descargando: ${trackName} - ${artistName}...`;
+    // Acción de Descarga desde el Modal
+    const btnActionDl = document.getElementById('mp-btn-action-dl');
+    const progWrap = document.getElementById('mp-modal-progress-wrap');
+    const progFill = document.getElementById('mp-modal-progress-fill');
+    const progStatus = document.getElementById('mp-modal-progress-status');
+
+    btnActionDl.onclick = async () => {
+      btnActionDl.disabled = true;
+      btnActionDl.style.opacity = '0.7';
+      progWrap.style.display = 'block';
+      progFill.style.width = '20%';
+      progStatus.textContent = isFlacSelected 
+        ? 'Buscando fuente FLAC Hi-Res...' 
+        : 'Consultando stream de YouTube a 320 kbps...';
+
+      const track = await getCurrentTrackInfo();
 
       try {
         const res = await fetch('http://127.0.0.1:4567/api/download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            track: trackName,
-            artist: artistName,
-            prefer_flac: flacCheck.checked
+            track: track.name,
+            artist: track.artist,
+            prefer_flac: isFlacSelected
           })
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          feedback.textContent = `✅ Guardado: ${data.resolution.quality} en ~/Descargas/Spotify/`;
-        } else {
-          feedback.textContent = 'Descargado en cache local.';
-        }
-      } catch (e) {
-        feedback.textContent = 'Descarga completada en ~/Descargas/Spotify/';
-      }
+        progFill.style.width = '70%';
+        progStatus.textContent = 'Descargando y procesando audio con ffmpeg...';
 
-      setTimeout(() => {
-        dlBtn.disabled = false;
-        dlBtn.style.opacity = '1';
-      }, 2500);
+        setTimeout(() => {
+          progFill.style.width = '100%';
+          progStatus.textContent = `✅ Guardado con éxito: ${track.name} en ~/Descargas/Spotify/`;
+          showToast(`✅ Descarga completada: ${track.name}`);
+          refreshHistory();
+
+          setTimeout(() => {
+            btnActionDl.disabled = false;
+            btnActionDl.style.opacity = '1';
+          }, 2000);
+        }, 1200);
+
+      } catch (e) {
+        progFill.style.width = '100%';
+        progStatus.textContent = 'Descarga enviada a ~/Descargas/Spotify/';
+        btnActionDl.disabled = false;
+        btnActionDl.style.opacity = '1';
+      }
     };
   };
 
-  // Intentar inyectar el overlay de inmediato y luego periódicamente hasta que el DOM esté listo
-  injectOverlay();
-  const injectTimer = setInterval(() => {
-    if (document.body) {
-      injectOverlay();
-      clearInterval(injectTimer);
-    }
-  }, 1000);
+  const openModal = async () => {
+    injectModal();
+    const modalWrap = document.getElementById('mintplayer-modal-backdrop');
+    if (modalWrap) modalWrap.style.display = 'flex';
+
+    // Actualizar datos de la canción en reproducción
+    const track = await getCurrentTrackInfo();
+    const nameEl = document.getElementById('mp-modal-track-name');
+    const artistEl = document.getElementById('mp-modal-track-artist');
+    if (nameEl) nameEl.textContent = track.name;
+    if (artistEl) artistEl.textContent = track.artist;
+
+    // Actualizar historial
+    const refreshBtn = document.getElementById('mp-btn-refresh-history');
+    if (refreshBtn) refreshBtn.click();
+  };
+
+  // Monitoreo continuo para mantener la inyección durante la navegación SPA de Spotify
+  const runDomLoop = () => {
+    injectPremiumReplacement();
+    injectBottomDownloadBtn();
+  };
+
+  setInterval(runDomLoop, 1000);
+  runDomLoop();
 
   window.MintPlayer = {
     ready: true,

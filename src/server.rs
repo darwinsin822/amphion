@@ -123,7 +123,32 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
             };
 
             let download_meta = ext_mgr.resolve_download(&track_name, &artist, prefer_flac);
-            let dest_dir = &st.download_dir;
+            let dest_dir = st.download_dir.clone();
+
+            // Ejecución asíncrona real mediante yt-dlp
+            let query = format!("ytsearch1:{} {} audio", track_name, artist);
+            let audio_format = if prefer_flac { "flac" } else { "mp3" };
+            let out_tmpl = format!("{}/%(title)s.%(ext)s", dest_dir);
+
+            tokio::spawn(async move {
+                let ytdlp_path = if std::path::Path::new("/home/darwinsin/.local/bin/yt-dlp").exists() {
+                    "/home/darwinsin/.local/bin/yt-dlp"
+                } else {
+                    "yt-dlp"
+                };
+
+                let _ = std::process::Command::new(ytdlp_path)
+                    .arg("-x")
+                    .arg("--audio-format")
+                    .arg(audio_format)
+                    .arg("--audio-quality")
+                    .arg("320K")
+                    .arg("--no-playlist")
+                    .arg("-o")
+                    .arg(&out_tmpl)
+                    .arg(&query)
+                    .spawn();
+            });
 
             let result = json!({
                 "status": "success",
@@ -135,6 +160,35 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
             });
 
             ("200 OK", "application/json", result.to_string())
+        }
+
+        ("POST", "/api/open-downloads") => {
+            let st = state.lock().await;
+            let _ = std::process::Command::new("xdg-open")
+                .arg(&st.download_dir)
+                .spawn();
+            ("200 OK", "application/json", json!({ "ok": true, "path": st.download_dir }).to_string())
+        }
+
+        ("GET", "/api/downloads/history") => {
+            let st = state.lock().await;
+            let mut files = Vec::new();
+            if let Ok(entries) = std::fs::read_dir(&st.download_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file() {
+                        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                        let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+                        let ext = path.extension().unwrap_or_default().to_string_lossy().to_string();
+                        files.push(json!({
+                            "name": name,
+                            "size_bytes": size,
+                            "extension": ext
+                        }));
+                    }
+                }
+            }
+            ("200 OK", "application/json", serde_json::to_string(&files).unwrap_or_default())
         }
 
         ("POST", "/api/toggle-play") => {
