@@ -1,4 +1,4 @@
-// MintPlayer Bridge v0.3.0 - Spotify Web Player Controller, Extension Manager & Universal Downloader
+// MintPlayer Bridge v0.3.1 - Spotify Web Player Controller, Extension Manager & Universal Downloader
 // Diseñado para Linux Mint Cinnamon con arquitectura desacoplada vía CDP
 
 (() => {
@@ -204,37 +204,59 @@
       const dlBtn = document.createElement('button');
       dlBtn.className = 'mintplayer-row-dl-btn';
       dlBtn.title = `Descargar "${trackName} - ${artistName}" a ~/Descargas/Spotify/`;
-      dlBtn.innerHTML = `⬇️`;
+      // SVG premium: flecha hacia abajo sobre bandeja (estilo Spotify/Orpheon)
+      const SVG_DL = `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1a.75.75 0 0 1 .75.75v7.19l2.47-2.47a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L3.72 7.53a.75.75 0 0 1 1.06-1.06l2.47 2.47V1.75A.75.75 0 0 1 8 1zM2.75 13.5a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H2.75z"/></svg>`;
+      const SVG_SPINNER = `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" style="animation:mp-spin 0.9s linear infinite" aria-hidden="true"><path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zm0 1.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9z" opacity=".25"/><path d="M8 2a6 6 0 0 1 6 6h-1.5A4.5 4.5 0 0 0 8 3.5V2z"/></svg>`;
+      const SVG_CHECK = `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>`;
+      dlBtn.innerHTML = SVG_DL;
       dlBtn.style.cssText = `
-        background: none;
+        background: transparent;
         border: none;
         color: #b3b3b3;
         cursor: pointer;
-        font-size: 14px;
-        padding: 4px 8px;
-        margin-right: 8px;
-        border-radius: 4px;
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        padding: 0;
+        margin: 0 4px;
+        border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        transition: transform 0.15s, color 0.15s;
+        transition: color 0.15s ease, transform 0.15s ease, background 0.15s ease;
         vertical-align: middle;
+        flex-shrink: 0;
+        opacity: 0;
       `;
 
-      dlBtn.onmouseenter = () => { dlBtn.style.color = '#1ed760'; dlBtn.style.transform = 'scale(1.2)'; };
-      dlBtn.onmouseleave = () => { if (!dlBtn.dataset.downloaded) { dlBtn.style.color = '#b3b3b3'; dlBtn.style.transform = 'scale(1)'; } };
+      // Mostrar el botón solo cuando el row está en hover (igual que los botones nativos de Spotify)
+      row.addEventListener('mouseenter', () => { if (!dlBtn.dataset.downloaded) dlBtn.style.opacity = '1'; });
+      row.addEventListener('mouseleave', () => { if (!dlBtn.dataset.downloaded) dlBtn.style.opacity = '0'; });
+
+      dlBtn.onmouseenter = () => {
+        dlBtn.style.color = '#1ed760';
+        dlBtn.style.transform = 'scale(1.1)';
+        dlBtn.style.background = 'rgba(255,255,255,0.08)';
+      };
+      dlBtn.onmouseleave = () => {
+        if (!dlBtn.dataset.downloaded) dlBtn.style.color = '#b3b3b3';
+        dlBtn.style.transform = 'scale(1)';
+        dlBtn.style.background = 'transparent';
+      };
 
       dlBtn.onclick = async (e) => {
         e.stopPropagation();
         dlBtn.disabled = true;
-        dlBtn.innerHTML = `⏳`;
+        dlBtn.innerHTML = SVG_SPINNER;
         dlBtn.style.color = '#1ed760';
+        dlBtn.style.opacity = '1';
 
         await triggerDownloadTrack(trackName, artistName, null, idx + 1, false);
 
-        dlBtn.innerHTML = `✓`;
+        dlBtn.innerHTML = SVG_CHECK;
         dlBtn.dataset.downloaded = "true";
         dlBtn.style.color = '#1ed760';
+        dlBtn.style.opacity = '1';
         dlBtn.title = "✅ Pista descargada con éxito";
       };
 
@@ -254,38 +276,39 @@
       const batchBtn = document.createElement('button');
       batchBtn.className = 'mintplayer-batch-dl-btn';
       batchBtn.innerHTML = `
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 6px;">
-          <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
-        </svg>
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" style="margin-right: 7px; flex-shrink:0;" aria-hidden="true"><path d="M8 1a.75.75 0 0 1 .75.75v7.19l2.47-2.47a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L3.72 7.53a.75.75 0 0 1 1.06-1.06l2.47 2.47V1.75A.75.75 0 0 1 8 1zM2.75 13.5a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H2.75z"/></svg>
         <span>Descargar Todo</span>
       `;
       batchBtn.title = "Descargar todas las canciones de esta lista o álbum a ~/Descargas/Spotify/";
       batchBtn.style.cssText = `
         background-color: transparent;
         color: #b3b3b3;
-        border: 1px solid #727272;
+        border: 1px solid rgba(255,255,255,0.3);
         border-radius: 500px;
-        padding: 6px 16px;
+        padding: 0 16px;
         font-family: CircularSp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         font-size: 13px;
         font-weight: 700;
+        letter-spacing: 0.03em;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
         margin-left: 12px;
-        transition: transform 0.15s, border-color 0.15s, color 0.15s;
-        height: 34px;
+        height: 32px;
         box-sizing: border-box;
+        transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
       `;
 
       batchBtn.onmouseenter = () => {
-        batchBtn.style.borderColor = '#ffffff';
-        batchBtn.style.color = '#ffffff';
+        batchBtn.style.borderColor = '#1ed760';
+        batchBtn.style.color = '#1ed760';
         batchBtn.style.transform = 'scale(1.04)';
       };
       batchBtn.onmouseleave = () => {
-        batchBtn.style.borderColor = '#727272';
-        batchBtn.style.color = '#b3b3b3';
+        if (!batchBtn.dataset.queued) {
+          batchBtn.style.borderColor = 'rgba(255,255,255,0.3)';
+          batchBtn.style.color = '#b3b3b3';
+        }
         batchBtn.style.transform = 'scale(1)';
       };
 
@@ -349,7 +372,10 @@
           if (res.ok) {
             const data = await res.json();
             showToast(`✅ ${data.message} Organizado en ~/Descargas/Spotify/`);
-            batchBtn.innerHTML = `<span>✓ Encolado (${tracks.length})</span>`;
+            batchBtn.innerHTML = `
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" style="margin-right:6px;flex-shrink:0"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>
+              <span>Encolado (${tracks.length})</span>`;
+            batchBtn.dataset.queued = "true";
             batchBtn.style.color = '#1ed760';
             batchBtn.style.borderColor = '#1ed760';
           }
@@ -419,10 +445,12 @@
 
     const dlBtn = document.createElement('button');
     dlBtn.id = 'mintplayer-quick-dl-btn';
-    dlBtn.title = "⚡ Descarga Rápida (1-Click)";
+    dlBtn.title = "⚡ Descarga Rápida — Canción Actual (1-Click)";
+    dlBtn.setAttribute('aria-label', 'Descargar canción actual');
+    // Icono: flecha de descarga limpia — mismo estilo que ♥ shuffle repeat en Spotify
     dlBtn.innerHTML = `
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+      <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
+        <path d="M8 1a.75.75 0 0 1 .75.75v7.19l2.47-2.47a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L3.72 7.53a.75.75 0 0 1 1.06-1.06l2.47 2.47V1.75A.75.75 0 0 1 8 1zM2.75 13.5a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H2.75z"/>
       </svg>
     `;
     dlBtn.style.cssText = `
@@ -430,14 +458,20 @@
       border: none;
       color: #b3b3b3;
       cursor: pointer;
-      padding: 8px;
-      margin-left: 8px;
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      padding: 0;
+      margin: 0 4px;
+      border-radius: 50%;
       display: inline-flex;
       align-items: center;
-      transition: color 0.15s, transform 0.15s;
+      justify-content: center;
+      transition: color 0.15s ease, transform 0.15s ease;
+      flex-shrink: 0;
     `;
-    dlBtn.onmouseenter = () => { dlBtn.style.color = '#1ed760'; dlBtn.style.transform = 'scale(1.18)'; };
-    dlBtn.onmouseleave = () => { dlBtn.style.color = '#b3b3b3'; dlBtn.style.transform = 'scale(1)'; };
+    dlBtn.onmouseenter = () => { dlBtn.style.color = '#1ed760'; dlBtn.style.transform = 'scale(1.1)'; };
+    dlBtn.onmouseleave = () => { if (!dlBtn.dataset.clicked) dlBtn.style.color = '#b3b3b3'; dlBtn.style.transform = 'scale(1)'; };
     dlBtn.onclick = async (e) => {
       e.stopPropagation();
       const track = await getCurrentTrackInfo();
@@ -461,6 +495,11 @@
     modalWrap.id = 'mintplayer-modal-backdrop';
     modalWrap.innerHTML = `
       <style>
+        @keyframes mp-spin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+
         .mintplayer-premium-style-btn {
           background-color: #ffffff !important;
           color: #000000 !important;
@@ -601,7 +640,7 @@
             <span style="font-size: 24px;">🧩</span>
             <div>
               <h2 style="margin: 0; font-size: 18px; font-weight: 700;">Extensiones & Descargas Rápidas</h2>
-              <div style="font-size: 12px; color: #a7a7a7;">MintPlayer v0.3.0 • Ecosistema Completo Orpheon</div>
+              <div style="font-size: 12px; color: #a7a7a7;">MintPlayer v0.3.1 • Ecosistema Completo Orpheon</div>
             </div>
           </div>
           <button id="mp-close-x" style="background: none; border: none; color: #b3b3b3; font-size: 22px; cursor: pointer;">✕</button>
@@ -630,7 +669,7 @@
 
           <!-- Botón de Acción Principal -->
           <button class="mp-dl-btn-green" id="mp-btn-action-dl">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1a.75.75 0 0 1 .75.75v7.19l2.47-2.47a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L3.72 7.53a.75.75 0 0 1 1.06-1.06l2.47 2.47V1.75A.75.75 0 0 1 8 1zM2.75 13.5a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H2.75z"/></svg>
             <span>Descargar Canción Actual Ahora</span>
           </button>
 
