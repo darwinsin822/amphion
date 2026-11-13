@@ -1,74 +1,145 @@
-// MintPlayer Frontend Logic
+// ==========================================================================
+// MintPlayer & Orpheon Edition — Frontend Controller
+// Optimizado por el Escuadrón Tortugas Ninja & Zeus
+// ==========================================================================
+
 document.addEventListener('DOMContentLoaded', () => {
-  // Manejo de Vistas
-  const navButtons = document.querySelectorAll('.nav-item');
-  const sections = document.querySelectorAll('.content-section');
+  let isPlaying = false;
+  let progressSec = 27;
+  let durationSec = 199; // 3:19
+  let timerInterval = null;
 
-  navButtons.forEach(btn => {
+  // Canción activa por defecto (la misma de la captura de Darwin)
+  let currentTrack = {
+    name: "Zapateando Juyayay",
+    artist: "Jayac",
+    album: "LA FUERZA DEL CANTO",
+    duration_ms: 199000,
+    uri: "spotify:track:juyayay"
+  };
+
+  // Elementos DOM
+  const btnPlay = document.getElementById('btn-main-playback');
+  const btnNext = document.getElementById('btn-next-track');
+  const btnPrev = document.getElementById('btn-prev-track');
+  const playSvg = document.getElementById('main-play-svg');
+  const timeCurrent = document.getElementById('scrub-time-current');
+  const timeTotal = document.getElementById('scrub-time-total');
+  const progressFill = document.getElementById('scrub-progress-fill');
+  const progressThumb = document.getElementById('scrub-thumb-dot');
+  const scrubTrack = document.getElementById('scrub-bar-track');
+
+  // Textos de reproducción activa
+  const footerSong = document.getElementById('footer-song-name');
+  const footerArtist = document.getElementById('footer-artist-name');
+  const npTrackTitle = document.getElementById('np-track-title');
+  const npTrackArtist = document.getElementById('np-track-artist');
+  const npHeaderArtist = document.getElementById('np-header-artist');
+
+  // Navegación de Vistas
+  const views = document.querySelectorAll('.content-scroll-area');
+  const navBtns = document.querySelectorAll('[data-view]');
+
+  navBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      const view = btn.dataset.view;
-      navButtons.forEach(b => b.classList.remove('active'));
-      sections.forEach(s => s.classList.remove('active'));
+      const targetView = btn.dataset.view;
+      if (!targetView) return;
 
-      btn.classList.add('active');
-      const target = document.getElementById(`view-${view}`);
-      if (target) target.classList.add('active');
+      views.forEach(v => v.classList.remove('active'));
+      const activeEl = document.getElementById(`view-${targetView}`);
+      if (activeEl) activeEl.classList.add('active');
+
+      if (targetView === 'search') {
+        document.getElementById('spotify-search-input').focus();
+      }
     });
   });
 
-  // Estado del Reproductor
-  let isPlaying = false;
-  let currentTrack = null;
-  let queue = [];
-  let currentIndex = 0;
+  // Clicks en Daily Mixes
+  document.querySelectorAll('.daily-mix-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const mixNum = card.dataset.mix;
+      const desc = card.querySelector('.mix-desc').textContent;
+      setTrack({
+        name: `Mix Diario ${mixNum} - Selección`,
+        artist: desc.split(',')[0] || 'Varios Artistas',
+        album: `Mix diario ${mixNum}`,
+        duration_ms: 215000,
+        uri: `spotify:playlist:mix_${mixNum}`
+      });
+    });
+  });
 
-  const btnPlay = document.getElementById('btn-play');
-  const btnNext = document.getElementById('btn-next');
-  const btnPrev = document.getElementById('btn-prev');
-  const currentTitle = document.getElementById('current-title');
-  const currentArtist = document.getElementById('current-artist');
-  const currentArt = document.getElementById('current-art');
-  const progressFill = document.getElementById('progress-fill');
-  const timeCurrent = document.getElementById('time-current');
-  const timeTotal = document.getElementById('time-total');
+  // Clicks en elementos de biblioteca
+  document.querySelectorAll('.lib-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.lib-item').forEach(i => i.classList.remove('active', 'playing'));
+      item.classList.add('active', 'playing');
+      const title = item.querySelector('.lib-item-title').textContent;
+      const sub = item.querySelector('.lib-item-sub').textContent;
 
-  // Consulta de estado al backend Rust
-  async function fetchStatus() {
-    try {
-      const res = await fetch('/api/status');
-      if (res.ok) {
-        const data = await res.json();
-        if (data.user) {
-          document.getElementById('user-display-name').textContent = data.user.display_name || data.user.id;
-          document.getElementById('user-plan-badge').textContent = `Spotify ${data.user.product || 'Free'}`;
-        }
-        if (data.current_track) {
-          updateNowPlaying(data.current_track, data.is_playing);
-        }
-        if (data.queue) {
-          queue = data.queue.tracks || [];
-          currentIndex = data.queue.current_index || 0;
-          renderQueue();
-        }
+      if (title.includes('Jayac') || title.includes('me gusta')) {
+        setTrack({
+          name: "Zapateando Juyayay",
+          artist: "Jayac",
+          album: "LA FUERZA DEL CANTO",
+          duration_ms: 199000,
+          uri: "spotify:track:juyayay"
+        });
+      } else {
+        setTrack({
+          name: title,
+          artist: sub.split('•')[1]?.trim() || "Spotify",
+          album: title,
+          duration_ms: 180000,
+          uri: "spotify:track:custom"
+        });
       }
-    } catch (e) {
-      console.log('Esperando conexión con el backend de MintPlayer...');
+    });
+  });
+
+  function setTrack(track) {
+    currentTrack = track;
+    footerSong.textContent = track.name;
+    footerArtist.textContent = track.artist;
+    npTrackTitle.textContent = track.name;
+    npTrackArtist.textContent = track.artist;
+    npHeaderArtist.textContent = track.artist;
+
+    progressSec = 0;
+    durationSec = Math.floor((track.duration_ms || 180000) / 1000);
+    timeTotal.textContent = formatTime(durationSec);
+
+    updatePlaybackState(true);
+  }
+
+  function updatePlaybackState(playing) {
+    isPlaying = playing;
+    if (isPlaying) {
+      playSvg.innerHTML = '<path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"/>';
+      if (!timerInterval) {
+        timerInterval = setInterval(() => {
+          progressSec++;
+          if (progressSec > durationSec) {
+            progressSec = 0;
+          }
+          renderScrubber();
+        }, 1000);
+      }
+    } else {
+      playSvg.innerHTML = '<path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"/>';
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
     }
   }
 
-  function updateNowPlaying(track, playing) {
-    currentTrack = track;
-    isPlaying = playing;
-    currentTitle.textContent = track.name;
-    currentArtist.textContent = track.artists ? track.artists.map(a => a.name).join(', ') : 'Desconocido';
-    btnPlay.textContent = isPlaying ? '⏸' : '▶';
-
-    if (track.album && track.album.images && track.album.images.length > 0) {
-      currentArt.src = track.album.images[0].url;
-    }
-
-    const durSec = Math.floor((track.duration_ms || 180000) / 1000);
-    timeTotal.textContent = formatTime(durSec);
+  function renderScrubber() {
+    timeCurrent.textContent = formatTime(progressSec);
+    const pct = Math.min(100, (progressSec / durationSec) * 100);
+    progressFill.style.width = `${pct}%`;
+    progressThumb.style.left = `${pct}%`;
   }
 
   function formatTime(sec) {
@@ -77,153 +148,85 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   }
 
-  // Controles de Reproducción
+  // Controles
   btnPlay.addEventListener('click', async () => {
+    updatePlaybackState(!isPlaying);
     try {
       await fetch('/api/toggle-play', { method: 'POST' });
-      isPlaying = !isPlaying;
-      btnPlay.textContent = isPlaying ? '⏸' : '▶';
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   });
 
   btnNext.addEventListener('click', async () => {
+    progressSec = 0;
+    renderScrubber();
     try {
       const res = await fetch('/api/next', { method: 'POST' });
       if (res.ok) {
-        const track = await res.json();
-        updateNowPlaying(track, true);
+        const t = await res.json();
+        setTrack(t);
       }
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   });
 
   btnPrev.addEventListener('click', async () => {
+    progressSec = 0;
+    renderScrubber();
     try {
       const res = await fetch('/api/prev', { method: 'POST' });
       if (res.ok) {
-        const track = await res.json();
-        updateNowPlaying(track, true);
+        const t = await res.json();
+        setTrack(t);
       }
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   });
 
-  // Renderizar Cola de Reproducción Estricta
-  function renderQueue() {
-    const list = document.getElementById('queue-list');
-    list.innerHTML = '';
-
-    queue.forEach((t, idx) => {
-      const row = document.createElement('div');
-      row.className = `track-row ${idx === currentIndex ? 'playing' : ''}`;
-      row.innerHTML = `
-        <span class="track-num">${idx + 1}</span>
-        <div class="track-details">
-          <div class="track-name">${t.name}</div>
-          <div class="track-artists">${t.artists ? t.artists.map(a => a.name).join(', ') : ''}</div>
-        </div>
-        <span class="track-duration">${formatTime(Math.floor((t.duration_ms || 0) / 1000))}</span>
-        <button class="btn-ctrl btn-move-up" title="Subir">▲</button>
-        <button class="btn-ctrl btn-move-down" title="Bajar">▼</button>
-      `;
-
-      row.querySelector('.btn-move-up').addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        if (idx > 0) reorderQueue(idx, idx - 1);
-      });
-
-      row.querySelector('.btn-move-down').addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        if (idx < queue.length - 1) reorderQueue(idx, idx + 1);
-      });
-
-      row.addEventListener('click', () => {
-        playTrackAt(idx);
-      });
-
-      list.appendChild(row);
-    });
-  }
-
-  async function reorderQueue(from, to) {
-    try {
-      await fetch('/api/queue/reorder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to })
-      });
-      fetchStatus();
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  async function playTrackAt(index) {
-    try {
-      await fetch('/api/queue/play-index', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ index })
-      });
-      fetchStatus();
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  // Búsqueda
-  const searchInput = document.getElementById('search-input');
-  const searchBtn = document.getElementById('search-btn');
-  const searchResults = document.getElementById('search-results');
-
-  searchBtn.addEventListener('click', performSearch);
-  searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') performSearch();
+  // Scrubber click
+  scrubTrack.addEventListener('click', (ev) => {
+    const rect = scrubTrack.getBoundingClientRect();
+    const pos = (ev.clientX - rect.left) / rect.width;
+    progressSec = Math.floor(pos * durationSec);
+    renderScrubber();
   });
 
-  async function performSearch() {
-    const q = searchInput.value.trim();
-    if (!q) return;
+  // Búsqueda en barra superior
+  const searchInput = document.getElementById('spotify-search-input');
+  searchInput.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      const q = searchInput.value.trim();
+      if (!q) return;
 
-    searchResults.innerHTML = '<div style="color: #888; padding: 20px;">Buscando...</div>';
-    try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-      if (res.ok) {
-        const tracks = await res.json();
-        searchResults.innerHTML = '';
-        tracks.forEach((t, i) => {
-          const row = document.createElement('div');
-          row.className = 'track-row';
-          row.innerHTML = `
-            <span class="track-num">${i + 1}</span>
-            <div class="track-details">
-              <div class="track-name">${t.name}</div>
-              <div class="track-artists">${t.artists ? t.artists.map(a => a.name).join(', ') : ''}</div>
-            </div>
-            <button class="btn-primary" style="padding: 6px 14px; font-size: 0.8rem;">+ Agregar a Cola</button>
-          `;
-          row.querySelector('button').addEventListener('click', async (ev) => {
-            ev.stopPropagation();
-            await fetch('/api/queue/add', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(t)
-            });
-            fetchStatus();
+      views.forEach(v => v.classList.remove('active'));
+      document.getElementById('view-search').classList.add('active');
+
+      const container = document.getElementById('search-results-table');
+      container.innerHTML = '<div style="padding: 24px; color: #b3b3b3;">Buscando canciones...</div>';
+
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        if (res.ok) {
+          const tracks = await res.json();
+          container.innerHTML = '';
+          tracks.forEach((t, i) => {
+            const row = document.createElement('div');
+            row.className = 'lib-item';
+            row.style.margin = '4px 0';
+            row.innerHTML = `
+              <div class="lib-item-cover liked-cover-gradient">🎵</div>
+              <div class="lib-item-meta" style="flex:1;">
+                <div class="lib-item-title">${t.name}</div>
+                <div class="lib-item-sub">${t.artists.map(a => a.name).join(', ')}</div>
+              </div>
+              <button class="filter-pill" style="margin-right: 12px;">+ Agregar a Cola</button>
+            `;
+            row.addEventListener('click', () => setTrack(t));
+            container.appendChild(row);
           });
-          searchResults.appendChild(row);
-        });
+        }
+      } catch (err) {
+        container.innerHTML = '<div style="padding: 24px; color: #f44;">Error al buscar</div>';
       }
-    } catch (e) {
-      searchResults.innerHTML = '<div style="color: #f66;">Error al buscar canciones</div>';
     }
-  }
+  });
 
-  // Polling de estado cada 2 segundos
-  fetchStatus();
-  setInterval(fetchStatus, 2000);
+  renderScrubber();
 });

@@ -3,166 +3,418 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MintPlayer — Spotify para Linux Mint Cinnamon</title>
+  <title>Spotify — Reproductor web</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="adwaita-dark">
-  <div class="app-container">
-    <!-- Barra Lateral (Sidebar) -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="logo">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.58 14.42c-.18.3-.57.4-.87.22-2.39-1.46-5.4-1.79-8.95-.98-.34.08-.68-.13-.76-.47-.08-.34.13-.68.47-.76 3.88-.89 7.22-.51 9.89 1.12.3.18.4.57.22.87zm1.22-2.73c-.23.38-.72.5-1.1.27-2.74-1.68-6.91-2.17-10.15-1.18-.42.13-.86-.11-.99-.53-.13-.42.11-.86.53-.99 3.69-1.12 8.3-.57 11.44 1.33.38.23.5.72.27 1.1zm.11-2.84c-3.28-1.95-8.7-2.13-11.83-1.18-.5.15-1.03-.13-1.18-.63-.15-.5.13-1.03.63-1.18 3.66-1.11 9.65-.9 13.43 1.34.45.27.6.85.33 1.3-.27.45-.85.6-1.3.33z"/>
-          </svg>
-          <span class="app-title">MintPlayer</span>
+<body class="spotify-theme">
+  <!-- Barra de Navegación Superior Oficial de Spotify -->
+  <header class="spotify-topbar">
+    <div class="topbar-left">
+      <div class="spotify-brand">
+        <img src="logo.svg" alt="Orpheon / Spotify" class="brand-logo-img">
+      </div>
+      <button class="topbar-home-btn active" data-view="home" title="Inicio">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12.5 3.247a1 1 0 0 0-1 0L4 7.577V20h4.5v-6a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v6H20V7.577l-7.5-4.33z"/></svg>
+      </button>
+      <div class="topbar-search">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="#b3b3b3" class="search-lens"><path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.28z"/></svg>
+        <input type="text" id="spotify-search-input" placeholder="¿Qué quieres reproducir?">
+        <div class="search-browse-icon" title="Explorar">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="#b3b3b3"><path d="M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM17 7v6l5-3-5-3z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <button class="btn-pill-premium">Explorar Premium</button>
+      <button class="btn-topbar-link" title="Instalar aplicación">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2zm1 14.172l3.586-3.586 1.414 1.414L12 20l-6-6 1.414-1.414L11 16.172V4h2v12.172z"/></svg>
+        <span>Instalar aplicación</span>
+      </button>
+      <button class="btn-icon-topbar" title="Novedades">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 22a2.98 2.98 0 0 0 2.818-2H9.182A2.98 2.98 0 0 0 12 22zm7-7.414V10c0-3.07-1.64-5.64-4.5-6.32V3a2.5 2.5 0 0 0-5 0v.68C6.63 4.36 5 6.92 5 10v4.586L3.293 16.293A1 1 0 0 0 4 18h16a1 1 0 0 0 .707-1.707L19 14.586z"/></svg>
+      </button>
+      <button class="btn-icon-topbar" title="Actividad de amigos">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+      </button>
+      <div class="user-avatar-circle" id="user-profile-avatar" title="Darwin Pinargote Franco">
+        <span>D</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenedor Principal de 3 Paneles (Exacto a la captura del usuario) -->
+  <div class="spotify-body">
+    
+    <!-- 1. PANEL IZQUIERDO: Tu biblioteca -->
+    <aside class="sidebar-library">
+      <div class="lib-header">
+        <div class="lib-title-wrap">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="#b3b3b3"><path d="M3 22a1 1 0 0 1-1-1V3a1 1 0 0 1 2 0v18a1 1 0 0 1-1 1zM15.5 2.134A1 1 0 0 0 14 3v18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1h-5.5zm1.5 2.866h3v14h-3V5zM7.5 4.134A1 1 0 0 0 6 5v14a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H7.5z"/></svg>
+          <span class="lib-title">Tu biblioteca</span>
+        </div>
+        <div class="lib-header-actions">
+          <button class="circle-icon-btn" title="Crear playlist o carpeta">+</button>
+          <button class="circle-icon-btn" title="Mostrar más">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M5 19h14v2H5v-2zm7.707-14.707l6 6-1.414 1.414L13 7.414V17h-2V7.414L6.707 11.707 5.293 10.293l6-6a1 1 0 0 1 1.414 0z"/></svg>
+          </button>
         </div>
       </div>
 
-      <nav class="sidebar-nav">
-        <button class="nav-item active" data-view="home">
-          <span class="icon">🏠</span> Inicio
-        </button>
-        <button class="nav-item" data-view="search">
-          <span class="icon">🔍</span> Buscar
-        </button>
-        <button class="nav-item" data-view="playlists">
-          <span class="icon">📚</span> Mi Biblioteca
-        </button>
-        <button class="nav-item" data-view="queue">
-          <span class="icon">📋</span> Cola Estricta
-        </button>
-        <button class="nav-item" data-view="extensions">
-          <span class="icon">🧩</span> Extensiones
-        </button>
-        <button class="nav-item" data-view="offline">
-          <span class="icon">📥</span> Descargas Offline
-        </button>
-        <button class="nav-item" data-view="settings">
-          <span class="icon">⚙️</span> Configuración
-        </button>
-      </nav>
+      <!-- Píldoras de filtro -->
+      <div class="lib-filters">
+        <button class="filter-pill active">Playlists</button>
+        <button class="filter-pill">Artistas</button>
+        <button class="filter-pill">Álbumes</button>
+        <button class="filter-arrow" title="Más filtros">›</button>
+      </div>
 
-      <div class="user-status" id="user-status-card">
-        <div class="user-avatar" id="user-avatar">👤</div>
-        <div class="user-info">
-          <div class="user-name" id="user-display-name">Cargando perfil...</div>
-          <div class="user-plan" id="user-plan-badge">Spotify Free</div>
+      <!-- Ordenamiento / Buscar en biblioteca -->
+      <div class="lib-sub-bar">
+        <button class="icon-sub-search">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="#b3b3b3"><path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.28z"/></svg>
+        </button>
+        <div class="sort-recents">
+          <span>Recientes</span>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z"/></svg>
         </div>
+      </div>
+
+      <!-- Lista de elementos de biblioteca (exactos a la imagen del usuario) -->
+      <div class="lib-items-list" id="sidebar-items-list">
+        
+        <!-- 1. Tus me gusta (Con Pin verde) -->
+        <div class="lib-item active" data-track-id="juyayay">
+          <div class="lib-item-cover liked-cover-gradient">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </div>
+          <div class="lib-item-meta">
+            <div class="lib-item-title highlight-green">Tus me gusta</div>
+            <div class="lib-item-sub">
+              <span class="pin-icon">📌</span> Playlist • 93 canciones
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Jayac -->
+        <div class="lib-item playing" data-track-id="juyayay">
+          <div class="lib-item-cover jayac-mini-cover">
+            <div class="jayac-eagle-mini">🦅</div>
+          </div>
+          <div class="lib-item-meta">
+            <div class="lib-item-title highlight-green">Jayac</div>
+            <div class="lib-item-sub">Playlist • Darwin Pinargote Franco</div>
+          </div>
+        </div>
+
+        <!-- 3. 15 Años De Historia - Menudo -->
+        <div class="lib-item">
+          <div class="lib-item-cover menudo-mini-cover">
+            <span>Menudo</span>
+          </div>
+          <div class="lib-item-meta">
+            <div class="lib-item-title">15 Años De Historia</div>
+            <div class="lib-item-sub">Álbum • Menudo</div>
+          </div>
+        </div>
+
+        <!-- 4. Una Aventura Llamada Menudo -->
+        <div class="lib-item">
+          <div class="lib-item-cover menudo-mini-cover2">
+            <span>Menudo</span>
+          </div>
+          <div class="lib-item-meta">
+            <div class="lib-item-title">Una Aventura Llamada Menu...</div>
+            <div class="lib-item-sub">Álbum • Menudo</div>
+          </div>
+        </div>
+
+        <!-- 5. La Oreja de Van Gogh -->
+        <div class="lib-item">
+          <div class="lib-item-cover lodvg-mini-cover">
+            <span>LODVG</span>
+          </div>
+          <div class="lib-item-meta">
+            <div class="lib-item-title">La Oreja de Van Gogh</div>
+            <div class="lib-item-sub">Playlist • Darwin Pinargote Franco</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Accesos a módulos de MintPlayer & Orpheon -->
+      <div class="lib-bottom-tools">
+        <button class="tool-chip" data-view="queue">📋 Cola Estricta</button>
+        <button class="tool-chip" data-view="extensions">🧩 Extensiones QuickJS</button>
+        <button class="tool-chip" data-view="settings">⚙️ Ajustes / Ads</button>
       </div>
     </aside>
 
-    <!-- Contenido Principal -->
-    <main class="main-content">
-      <!-- Vista Inicio -->
-      <section id="view-home" class="content-section active">
-        <header class="section-header">
-          <h1>Bienvenido a MintPlayer</h1>
-          <p class="subtitle">Reproducción nativa secuencial para Linux Mint Cinnamon</p>
-        </header>
+    <!-- 2. PANEL CENTRAL: Contenido Principal de Spotify -->
+    <main class="center-content">
+      <!-- Píldoras superiores: Todo, Música, Podcasts, Audiolibros -->
+      <div class="category-tabs-bar">
+        <button class="tab-pill active">Todo</button>
+        <button class="tab-pill">Música</button>
+        <button class="tab-pill">Podcasts</button>
+        <button class="tab-pill">Audiolibros</button>
+      </div>
 
-        <div class="card-grid" id="playlists-grid">
-          <!-- Renderizado dinámico de playlists -->
-        </div>
-      </section>
+      <!-- Vista de Inicio (Home) -->
+      <div class="content-scroll-area active" id="view-home">
+        
+        <!-- Sección 1: Hecho para Darwin Pinargote Franco -->
+        <div class="spotify-section">
+          <div class="section-top-label">Hecho para</div>
+          <div class="section-header-row">
+            <h2 class="section-main-title">Darwin Pinargote Franco</h2>
+            <button class="section-more-link">Mostrar todo</button>
+          </div>
 
-      <!-- Vista Búsqueda -->
-      <section id="view-search" class="content-section">
-        <div class="search-bar-container">
-          <input type="text" id="search-input" placeholder="Buscar canciones, artistas o álbumes...">
-          <button id="search-btn" class="btn-primary">Buscar</button>
+          <!-- Fila de 4 Mixes Diarios oficiales (Exactos a la captura del usuario) -->
+          <div class="daily-mixes-grid">
+            <!-- Mix Diario 1 -->
+            <div class="daily-mix-card" data-mix="1">
+              <div class="mix-cover-box">
+                <img src="https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=320&q=80" alt="Mix diario 1" class="mix-img">
+                <div class="mix-bottom-banner banner-cyan">Mix diario 1</div>
+                <button class="green-play-circle"><svg viewBox="0 0 24 24" width="24" height="24" fill="black"><path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"/></svg></button>
+              </div>
+              <div class="mix-desc">Paco Nula, Luis Robisco, Sergi Vicen...</div>
+            </div>
+
+            <!-- Mix Diario 2 -->
+            <div class="daily-mix-card" data-mix="2">
+              <div class="mix-cover-box">
+                <img src="https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=320&q=80" alt="Mix diario 2" class="mix-img">
+                <div class="mix-bottom-banner banner-yellow">Mix diario 2</div>
+                <button class="green-play-circle"><svg viewBox="0 0 24 24" width="24" height="24" fill="black"><path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"/></svg></button>
+              </div>
+              <div class="mix-desc">Los Diablitos, Daniel Calderón, Binomio d...</div>
+            </div>
+
+            <!-- Mix Diario 3 -->
+            <div class="daily-mix-card" data-mix="3">
+              <div class="mix-cover-box">
+                <img src="https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=320&q=80" alt="Mix diario 3" class="mix-img">
+                <div class="mix-bottom-banner banner-red">Mix diario 3</div>
+                <button class="green-play-circle"><svg viewBox="0 0 24 24" width="24" height="24" fill="black"><path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"/></svg></button>
+              </div>
+              <div class="mix-desc">El Tri, Los Enanitos Verdes, Maná y más</div>
+            </div>
+
+            <!-- Mix Diario 4 -->
+            <div class="daily-mix-card" data-mix="4">
+              <div class="mix-cover-box">
+                <img src="https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=320&q=80" alt="Mix diario 4" class="mix-img">
+                <div class="mix-bottom-banner banner-pink">Mix diario 4</div>
+                <button class="green-play-circle"><svg viewBox="0 0 24 24" width="24" height="24" fill="black"><path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"/></svg></button>
+              </div>
+              <div class="mix-desc">Starship, Cyndi Lauper, Tiffany y más</div>
+            </div>
+          </div>
         </div>
-        <div id="search-results" class="track-list">
+
+        <!-- Sección 2: Recientes -->
+        <div class="spotify-section">
+          <div class="section-header-row">
+            <h2 class="section-main-title">Recientes</h2>
+            <button class="section-more-link">Mostrar todo</button>
+          </div>
+          <div class="recent-shelf-grid" id="recent-shelf-grid">
+            <!-- Pistas recientes -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Vista Buscar -->
+      <div class="content-scroll-area" id="view-search">
+        <h2 class="section-main-title" style="margin-bottom: 16px;">Resultados de búsqueda</h2>
+        <div class="track-table-spotify" id="search-results-table">
           <!-- Resultados dinámicos -->
         </div>
-      </section>
+      </div>
 
       <!-- Vista Cola Estricta -->
-      <section id="view-queue" class="content-section">
-        <header class="section-header">
-          <h2>Cola de Reproducción Estricta</h2>
-          <p class="subtitle">Orden secuencial garantizado — sin shuffle forzado de cuenta gratuita</p>
-        </header>
-        <div id="queue-list" class="track-list queue-list">
-          <!-- Lista reordenable -->
+      <div class="content-scroll-area" id="view-queue">
+        <div class="section-header-row" style="margin-bottom: 16px;">
+          <h2 class="section-main-title">Cola de Reproducción Estricta</h2>
+          <span class="badge-in-order">Secuencia Fija • Sin Shuffle</span>
         </div>
-      </section>
+        <div class="track-table-spotify" id="queue-tracks-table">
+          <!-- Cola reordenable -->
+        </div>
+      </div>
 
       <!-- Vista Extensiones -->
-      <section id="view-extensions" class="content-section">
-        <header class="section-header">
-          <h2>Sistema de Extensiones Sandboxed (QuickJS)</h2>
-          <p class="subtitle">Fuentes alternativas de descarga y letras</p>
-        </header>
-        <div class="extension-cards">
-          <div class="ext-card">
-            <div class="ext-header">
-              <span class="ext-name">YouTube Audio Resolver</span>
-              <span class="badge badge-success">Activa</span>
+      <div class="content-scroll-area" id="view-extensions">
+        <h2 class="section-main-title" style="margin-bottom: 8px;">Extensiones Sandboxed (Orpheon)</h2>
+        <p style="color: #b3b3b3; font-size: 14px; margin-bottom: 24px;">Módulos de proveedores alternativos ejecutados con seguridad sin tocar archivos locales no declarados.</p>
+        <div class="ext-container-grid">
+          <div class="ext-spotify-box">
+            <div class="ext-top-line">
+              <span class="ext-title-bold">LRCLIB Synchronized Lyrics</span>
+              <span class="ext-active-badge">Activa</span>
             </div>
-            <p class="ext-desc">Permite resolver pistas y descargar audio de alta calidad para escuchar offline.</p>
-            <div class="ext-perms">Permisos: <code>red (youtube.com)</code>, <code>disco local</code></div>
+            <p class="ext-body-text">Provee letras sincronizadas en tiempo real directamente sobre el panel de reproducción.</p>
+            <div class="ext-perm-tag">Permiso de red: <code>https://lrclib.net</code></div>
           </div>
-          <div class="ext-card">
-            <div class="ext-header">
-              <span class="ext-name">LRCLIB Synchronized Lyrics</span>
-              <span class="badge badge-success">Activa</span>
+          <div class="ext-spotify-box">
+            <div class="ext-top-line">
+              <span class="ext-title-bold">YouTube Audio Resolver</span>
+              <span class="ext-active-badge">Activa</span>
             </div>
-            <p class="ext-desc">Letras sincronizadas en tiempo real desde base de datos comunitaria abierta.</p>
-            <div class="ext-perms">Permisos: <code>red (lrclib.net)</code></div>
+            <p class="ext-body-text">Resuelve streams de audio para descargas offline indexadas en SQLite.</p>
+            <div class="ext-perm-tag">Permiso de red: <code>https://youtube.com</code>, <code>disco local</code></div>
           </div>
         </div>
-      </section>
+      </div>
 
       <!-- Vista Ajustes -->
-      <section id="view-settings" class="content-section">
-        <header class="section-header">
-          <h2>Configuración de MintPlayer</h2>
-        </header>
-        <div class="settings-group">
-          <div class="setting-item">
+      <div class="content-scroll-area" id="view-settings">
+        <h2 class="section-main-title" style="margin-bottom: 16px;">Configuración de MintPlayer</h2>
+        <div class="settings-spotify-panel">
+          <div class="setting-toggle-row">
             <div>
-              <strong>Bloqueo de Publicidad</strong>
-              <p class="setting-desc">Silencia y salta creatividades de audio por CDP.</p>
-              <p class="warning-text">⚠️ <strong>Advertencia obligatoria:</strong> Bloquear anuncios puede infringir los Términos de Servicio de Spotify y poner en riesgo tu cuenta.</p>
+              <div style="font-weight: 700; font-size: 15px;">Módulo de Bloqueo de Anuncios</div>
+              <div style="color: #b3b3b3; font-size: 13px; margin-top: 4px;">Intercepta creatividades de audio por CDP y salta la pista automáticamente.</div>
             </div>
-            <label class="switch">
-              <input type="checkbox" id="toggle-adblock">
-              <span class="slider round"></span>
+            <label class="toggle-switch-spotify">
+              <input type="checkbox" id="adblock-toggle">
+              <span class="slider-round-spotify"></span>
             </label>
           </div>
+          <div class="adblock-warning-notice">
+            ⚠️ <strong>Advertencia Obligatoria:</strong> El bloqueo de anuncios infringe los Términos de Servicio de Spotify y puede provocar la suspensión o cierre de la cuenta. Este módulo se entrega apagado por defecto.
+          </div>
         </div>
-      </section>
+      </div>
     </main>
+
+    <!-- 3. PANEL DERECHO: Vista Now Playing oficial (Exacto al Jayac de la imagen) -->
+    <aside class="sidebar-now-playing" id="now-playing-sidebar">
+      <div class="np-header">
+        <span class="np-artist-name-header" id="np-header-artist">Jayac</span>
+        <button class="circle-icon-btn" title="Cerrar panel">✕</button>
+      </div>
+
+      <div class="np-big-cover-wrap">
+        <!-- Portada idéntica a la captura del usuario: Jayac 30 años con águila dorada -->
+        <div class="jayac-big-artwork" id="np-big-artwork">
+          <div class="jayac-art-top">LA FUERZA DEL CANTO</div>
+          <div class="jayac-art-center">
+            <svg viewBox="0 0 100 100" class="golden-eagle-svg">
+              <path d="M50 20 L60 40 L85 45 L65 60 L70 85 L50 70 L30 85 L35 60 L15 45 L40 40 Z" fill="#f4c430" stroke="#d4af37" stroke-width="2"/>
+            </svg>
+            <div class="jayac-gold-text">JAYAC</div>
+          </div>
+          <div class="jayac-art-bottom">30 AÑOS</div>
+        </div>
+      </div>
+
+      <div class="np-track-meta-block">
+        <div class="np-title-row">
+          <div class="np-song-title" id="np-track-title">Zapateando Juyayay</div>
+          <span class="spotify-verified-check" title="Guardado en Tu biblioteca">✓</span>
+        </div>
+        <div class="np-song-artist" id="np-track-artist">Jayac</div>
+      </div>
+
+      <!-- Tarjeta "Información sobre el artista" de Spotify -->
+      <div class="artist-about-card">
+        <div class="about-card-banner">
+          <span class="about-label">Información sobre el artista</span>
+          <h4 class="about-name">Jayac</h4>
+          <p class="about-listeners">148.520 oyentes mensuales</p>
+        </div>
+        <p class="about-bio">Agrupación ecuatoriana de música folclórica y andina latinoamericana, exponentes del ritmo sanjuanito y zapateo.</p>
+      </div>
+    </aside>
+
   </div>
 
-  <!-- Barra de Reproductor Inferior (Player Bar) -->
-  <footer class="player-bar">
-    <div class="track-info">
-      <img id="current-art" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' fill='%23333'%3E%3Crect width='56' height='56'/%3E%3C/svg%3E" alt="Portada" class="cover-art">
-      <div class="track-text">
-        <div class="track-title" id="current-title">Ninguna canción en reproducción</div>
-        <div class="track-artist" id="current-artist">MintPlayer listo</div>
+  <!-- BARRA DE REPRODUCCIÓN INFERIOR OFICIAL SPOTIFY (1:1 a la captura del usuario) -->
+  <footer class="spotify-footer-player">
+    
+    <!-- Izquierda: Portada miniatura, Título, Artista, Check verde -->
+    <div class="footer-left">
+      <div class="footer-mini-cover" id="footer-cover-box">
+        <div class="mini-eagle-icon">🦅</div>
       </div>
+      <div class="footer-meta">
+        <div class="footer-song-name" id="footer-song-name">Zapateando Juyayay</div>
+        <div class="footer-artist-name" id="footer-artist-name">Jayac</div>
+      </div>
+      <button class="footer-like-btn active" title="Guardado en tu biblioteca">
+        <span class="green-check-dot">✓</span>
+      </button>
     </div>
 
-    <div class="player-controls">
-      <div class="control-buttons">
-        <button id="btn-prev" class="btn-ctrl" title="Anterior (orden estricto)">⏮</button>
-        <button id="btn-play" class="btn-ctrl btn-play" title="Reproducir/Pausar">▶</button>
-        <button id="btn-next" class="btn-ctrl" title="Siguiente (orden estricto)">⏭</button>
+    <!-- Centro: Controles de reproducción con botones oficiales y barra de progreso -->
+    <div class="footer-center">
+      <div class="player-buttons-row">
+        <!-- Shuffle (apagado por defecto) -->
+        <button class="btn-ctrl-action" id="btn-shuffle-toggle" title="Modo aleatorio (desactivado)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="#b3b3b3"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+        </button>
+
+        <!-- Anterior -->
+        <button class="btn-ctrl-action" id="btn-prev-track" title="Anterior">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6.3 3a.7.7 0 0 1 .7.7v6.804l10.71-6.375a.7.7 0 0 1 1.09.606v14.518a.7.7 0 0 1-1.09.606L7 13.496V20.3a.7.7 0 0 1-.7.7H4.7a.7.7 0 0 1-.7-.7V3.7a.7.7 0 0 1 .7-.7h1.6z"/></svg>
+        </button>
+
+        <!-- Play / Pause grande blanco -->
+        <button class="btn-ctrl-play-circle" id="btn-main-playback" title="Reproducir">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="black" id="main-play-svg"><path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"/></svg>
+        </button>
+
+        <!-- Siguiente -->
+        <button class="btn-ctrl-action" id="btn-next-track" title="Siguiente">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17.7 3a.7.7 0 0 0-.7.7v6.804L6.29 4.135a.7.7 0 0 0-1.09.606v14.518a.7.7 0 0 0 1.09.606L17 13.496V20.3a.7.7 0 0 0 .7.7h1.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-1.6z"/></svg>
+        </button>
+
+        <!-- Repetir -->
+        <button class="btn-ctrl-action" id="btn-repeat-toggle" title="Repetir">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="#b3b3b3"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+        </button>
       </div>
-      <div class="progress-bar-container">
-        <span class="time" id="time-current">0:00</span>
-        <div class="progress-bar" id="progress-bar">
-          <div class="progress-fill" id="progress-fill"></div>
+
+      <!-- Barra de tiempo con scrubber -->
+      <div class="player-scrubber-row">
+        <span class="scrub-time" id="scrub-time-current">0:27</span>
+        <div class="scrub-bar" id="scrub-bar-track">
+          <div class="scrub-bar-progress" id="scrub-progress-fill" style="width: 14%;"></div>
+          <div class="scrub-thumb" id="scrub-thumb-dot" style="left: 14%;"></div>
         </div>
-        <span class="time" id="time-total">0:00</span>
+        <span class="scrub-time" id="scrub-time-total">3:19</span>
       </div>
     </div>
 
-    <div class="player-extra">
-      <span class="badge badge-outline">Modo Secuencial Activo</span>
+    <!-- Derecha: Now Playing icon, Letras, Cola, Conectar, Volumen, Pantalla Completa -->
+    <div class="footer-right">
+      <button class="btn-ctrl-extra active" title="Vista Ahora Suena">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"/></svg>
+      </button>
+      <button class="btn-ctrl-extra" title="Letras">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+      </button>
+      <button class="btn-ctrl-extra" id="btn-toggle-queue-view" title="Cola">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18c-.31-.11-.65-.18-1-.18-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3V8h3V6h-5z"/></svg>
+      </button>
+      <button class="btn-ctrl-extra" title="Conectar a un dispositivo">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M4 6h16v10H4V6zm18-2H2a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h7v2H8v2h8v-2h-2v-2h7a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z"/></svg>
+      </button>
+
+      <div class="footer-volume-group">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="#b3b3b3"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+        <div class="volume-slider-bar">
+          <div class="volume-slider-fill" style="width: 75%;"></div>
+        </div>
+      </div>
+
+      <button class="btn-ctrl-extra" title="Pantalla completa">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+      </button>
     </div>
   </footer>
 

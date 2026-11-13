@@ -11,6 +11,7 @@ use tokio::sync::Mutex;
 const HTML: &str = include_str!("../ui/index.html");
 const CSS: &str = include_str!("../ui/style.css");
 const JS: &str = include_str!("../ui/app.js");
+const LOGO: &str = include_str!("../ui/logo.svg");
 
 pub struct AppState {
     pub api: Option<SpotifyApi>,
@@ -61,6 +62,7 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
         ("GET", "/") | ("GET", "/index.html") => ("200 OK", "text/html", HTML.to_string()),
         ("GET", "/style.css") => ("200 OK", "text/css", CSS.to_string()),
         ("GET", "/app.js") => ("200 OK", "application/javascript", JS.to_string()),
+        ("GET", "/logo.svg") => ("200 OK", "image/svg+xml", LOGO.to_string()),
 
         ("GET", "/api/status") => {
             let st = state.lock().await;
