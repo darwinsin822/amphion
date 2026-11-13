@@ -5,6 +5,8 @@ dc4edfb859b81264704b7c3301b30f25  usr/share/mintplayer/extensions/youtube-resolv
 c20a38df3c92a10ac51ddc0735b843b9  usr/share/mintplayer/extensions/flac-resolver/manifest.json
 b8dd21b52208b35f91f9d74a6fd3731a  usr/share/mintplayer/extensions/flac-resolver/main.js
 c73a2160b32aed567a85404ef201dfe9  usr/share/applications/mintplayer.desktop
-da2eec482348a9ab9606f11b2a136f75  usr/share/icons/hicolor/512x512/apps/mintplayer.png
-5f4e440ddf9f7eb7c7f85a81ecd894e5  usr/share/icons/hicolor/scalable/apps/mintplayer.svg
-e9b06cddbd0f44faf7d0f99e735a1d8f  usr/bin/mintplayer
+89c48a9c9c4afab0f6046dbe115f2711  usr/share/icons/hicolor/512x512/apps/mintplayer.png
+89c48a9c9c4afab0f6046dbe115f2711  usr/share/icons/hicolor/512x512/apps/spotify.png
+602b2bb871f212ee7e2aab9d906b06b6  usr/share/icons/hicolor/scalable/apps/spotify.svg
+602b2bb871f212ee7e2aab9d906b06b6  usr/share/icons/hicolor/scalable/apps/mintplayer.svg
+8151d3e1d33d05abaa4a2b95fa0bf95b  usr/bin/mintplayer

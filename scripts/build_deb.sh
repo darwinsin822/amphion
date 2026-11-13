@@ -31,17 +31,21 @@ chmod 755 "$BUILD_DIR/usr/bin/mintplayer"
 echo "🧩 Integrando extensiones oficiales (YouTube Resolver + FLAC Resolver)..."
 cp -r extensions/* "$BUILD_DIR/usr/share/mintplayer/extensions/"
 
-# 4. Entrada de escritorio y assets de Orpheon / Spotify
-echo "🎨 [3/6] Integrando entrada .desktop y logos oficiales de Orpheon..."
+# 4. Entrada de escritorio y assets oficiales de Spotify
+echo "🎨 [3/6] Integrando entrada .desktop y logos oficiales de Spotify..."
 cp assets/mintplayer.desktop "$BUILD_DIR/usr/share/applications/mintplayer.desktop"
 chmod 644 "$BUILD_DIR/usr/share/applications/mintplayer.desktop"
 
-cp assets/orpheon-logo.svg "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps/mintplayer.svg"
+cp assets/spotify-original.svg "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps/mintplayer.svg"
+cp assets/spotify-original.svg "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps/spotify.svg"
 chmod 644 "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps/mintplayer.svg"
+chmod 644 "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps/spotify.svg"
 
-if [ -f "assets/orpheon-logo-512.png" ]; then
-  cp assets/orpheon-logo-512.png "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps/mintplayer.png"
+if [ -f "assets/spotify-original-512.png" ]; then
+  cp assets/spotify-original-512.png "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps/mintplayer.png"
+  cp assets/spotify-original-512.png "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps/spotify.png"
   chmod 644 "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps/mintplayer.png"
+  chmod 644 "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps/spotify.png"
 fi
 
 # 5. Control Debian

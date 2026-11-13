@@ -636,11 +636,14 @@
       <div id="mintplayer-modal-content">
         <!-- Encabezado -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 24px;">🧩</span>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <svg viewBox="0 0 512 512" width="28" height="28" fill="none" style="flex-shrink:0;">
+              <circle cx="256" cy="256" r="256" fill="#1ED760"/>
+              <path fill="#000000" d="M373.08 368.87c-4.61 7.53-14.38 9.96-21.89 5.37-59.99-36.65-135.51-44.95-224.45-24.64-8.62 1.98-17.21-3.41-19.2-12.03-1.98-8.62 3.41-17.21 12.03-19.2 97.47-22.25 181.12-12.89 248.16 28.09 7.51 4.59 9.94 14.36 5.35 21.89zm31.23-69.44c-5.8 9.45-18.18 12.48-27.63 6.68-68.7-42.2-173.4-54.4-254.66-29.72-10.65 3.22-21.91-2.84-25.13-13.48-3.22-10.65 2.84-21.91 13.48-25.13 93-28.22 208.57-14.55 287.26 34.02 9.45 5.8 12.48 18.18 6.68 27.63zm2.69-72.75C324.58 177.78 188.79 173.28 110.5 197.02c-12.63 3.84-26.07-3.33-29.91-15.96-3.84-12.63 3.33-26.07 15.96-29.91 90.03-27.35 240.01-22.1 334.65 34.05 11.37 6.74 15.11 21.51 8.37 32.88-6.72 11.39-21.48 15.11-32.57 8.39z"/>
+            </svg>
             <div>
               <h2 style="margin: 0; font-size: 18px; font-weight: 700;">Extensiones & Descargas Rápidas</h2>
-              <div style="font-size: 12px; color: #a7a7a7;">MintPlayer v0.3.1 • Ecosistema Completo Orpheon</div>
+              <div style="font-size: 12px; color: #a7a7a7;">MintPlayer v0.3.1 • Ecosistema Completo Spotify</div>
             </div>
           </div>
           <button id="mp-close-x" style="background: none; border: none; color: #b3b3b3; font-size: 22px; cursor: pointer;">✕</button>
