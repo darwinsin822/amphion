@@ -3,16 +3,35 @@ use crate::cdp::CdpSession;
 use crate::extensions::ExtensionManager;
 use crate::queue::QueueManager;
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 
 const HTML: &str = include_str!("../ui/index.html");
 const CSS: &str = include_str!("../ui/style.css");
 const JS: &str = include_str!("../ui/app.js");
 const LOGO: &str = include_str!("../ui/logo.svg");
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchTrackItem {
+    pub name: String,
+    pub artist: String,
+    pub album: Option<String>,
+    pub track_number: Option<u32>,
+    pub duration_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchDownloadRequest {
+    pub context_type: Option<String>, // "playlist", "album", "artist"
+    pub context_name: Option<String>,
+    pub artist_name: Option<String>,
+    pub prefer_flac: Option<bool>,
+    pub tracks: Vec<BatchTrackItem>,
+}
 
 pub struct AppState {
     pub api: Option<SpotifyApi>,
@@ -23,6 +42,7 @@ pub struct AppState {
     pub adblock_enabled: bool,
     pub prefer_flac_flag: bool,
     pub download_dir: String,
+    pub download_semaphore: Arc<Semaphore>,
 }
 
 pub async fn run_server(port: u16, state: Arc<Mutex<AppState>>) -> Result<()> {
@@ -32,14 +52,14 @@ pub async fn run_server(port: u16, state: Arc<Mutex<AppState>>) -> Result<()> {
     while let Ok((mut socket, _)) = listener.accept().await {
         let state_clone = Arc::clone(&state);
         tokio::spawn(async move {
-            let mut buf = [0u8; 8192];
+            let mut buf = [0u8; 16384];
             if let Ok(n) = socket.read(&mut buf).await {
                 if n == 0 { return; }
                 let req_str = String::from_utf8_lossy(&buf[..n]);
                 let (status, mime, body) = handle_request(&req_str, state_clone).await;
 
                 let resp = format!(
-                    "HTTP/1.1 {}\r\nContent-Type: {}\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    "HTTP/1.1 {}\r\nContent-Type: {}\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
                     status, mime, body.len(), body
                 );
                 let _ = socket.write_all(resp.as_bytes()).await;
@@ -48,6 +68,52 @@ pub async fn run_server(port: u16, state: Arc<Mutex<AppState>>) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn sanitize(s: &str) -> String {
+    s.chars()
+        .map(|c| if c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|' { '_' } else { c })
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
+fn trigger_ytdlp(
+    track_name: &str,
+    artist: &str,
+    target_dir: &str,
+    target_filename: &str,
+    prefer_flac: bool,
+    sem: Arc<Semaphore>,
+) {
+    let t_name = track_name.to_string();
+    let a_name = artist.to_string();
+    let dir = target_dir.to_string();
+    let file = target_filename.to_string();
+
+    tokio::spawn(async move {
+        let _permit = sem.acquire().await;
+        let _ = std::fs::create_dir_all(&dir);
+
+        let ytdlp_path = if std::path::Path::new("/home/darwinsin/.local/bin/yt-dlp").exists() {
+            "/home/darwinsin/.local/bin/yt-dlp"
+        } else {
+            "yt-dlp"
+        };
+
+        let query = format!("ytsearch1:{} {} audio", t_name, a_name);
+        let audio_format = if prefer_flac { "flac" } else { "mp3" };
+        let out_tmpl = format!("{}/{}.%(ext)s", dir, file);
+
+        let _ = std::process::Command::new(ytdlp_path)
+            .arg("-x")
+            .arg("--audio-format").arg(audio_format)
+            .arg("--audio-quality").arg("320K")
+            .arg("--no-playlist")
+            .arg("-o").arg(&out_tmpl)
+            .arg(&query)
+            .status();
+    });
 }
 
 async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str, &'static str, String) {
@@ -61,6 +127,10 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
 
     let method = parts[0];
     let path = parts[1];
+
+    if method == "OPTIONS" {
+        return ("200 OK", "text/plain", "OK".to_string());
+    }
 
     match (method, path) {
         ("GET", "/") | ("GET", "/index.html") => ("200 OK", "text/html", HTML.to_string()),
@@ -113,53 +183,88 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
             let st = state.lock().await;
             let ext_mgr = st.extensions.lock().await;
 
-            let (track_name, artist, prefer_flac) = if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
+            let (track_name, artist, album, track_num, prefer_flac) = if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
                 let t = v.get("track").and_then(|x| x.as_str()).unwrap_or("Zapateando Juyayay");
                 let a = v.get("artist").and_then(|x| x.as_str()).unwrap_or("Jayac");
+                let alb = v.get("album").and_then(|x| x.as_str()).map(|s| s.to_string());
+                let num = v.get("track_number").and_then(|x| x.as_u64()).map(|n| n as u32);
                 let flac = v.get("prefer_flac").and_then(|x| x.as_bool()).unwrap_or(st.prefer_flac_flag);
-                (t.to_string(), a.to_string(), flac)
+                (t.to_string(), a.to_string(), alb, num, flac)
             } else {
-                ("Zapateando Juyayay".to_string(), "Jayac".to_string(), st.prefer_flac_flag)
+                ("Zapateando Juyayay".to_string(), "Jayac".to_string(), None, None, st.prefer_flac_flag)
             };
 
             let download_meta = ext_mgr.resolve_download(&track_name, &artist, prefer_flac);
-            let dest_dir = st.download_dir.clone();
+            let base_dir = st.download_dir.clone();
+            let sem = Arc::clone(&st.download_semaphore);
 
-            // Ejecución asíncrona real mediante yt-dlp
-            let query = format!("ytsearch1:{} {} audio", track_name, artist);
-            let audio_format = if prefer_flac { "flac" } else { "mp3" };
-            let out_tmpl = format!("{}/%(title)s.%(ext)s", dest_dir);
+            let (target_dir, filename) = match (&album, track_num) {
+                (Some(alb), Some(num)) => (
+                    format!("{}/{}/{}", base_dir, sanitize(&artist), sanitize(alb)),
+                    format!("{:02} - {}", num, sanitize(&track_name))
+                ),
+                (Some(alb), None) => (
+                    format!("{}/{}/{}", base_dir, sanitize(&artist), sanitize(alb)),
+                    sanitize(&track_name)
+                ),
+                _ => (
+                    base_dir.clone(),
+                    format!("{} - {}", sanitize(&artist), sanitize(&track_name))
+                )
+            };
 
-            tokio::spawn(async move {
-                let ytdlp_path = if std::path::Path::new("/home/darwinsin/.local/bin/yt-dlp").exists() {
-                    "/home/darwinsin/.local/bin/yt-dlp"
-                } else {
-                    "yt-dlp"
-                };
-
-                let _ = std::process::Command::new(ytdlp_path)
-                    .arg("-x")
-                    .arg("--audio-format")
-                    .arg(audio_format)
-                    .arg("--audio-quality")
-                    .arg("320K")
-                    .arg("--no-playlist")
-                    .arg("-o")
-                    .arg(&out_tmpl)
-                    .arg(&query)
-                    .spawn();
-            });
+            trigger_ytdlp(&track_name, &artist, &target_dir, &filename, prefer_flac, sem);
 
             let result = json!({
                 "status": "success",
-                "message": format!("Descarga iniciada hacia {}", dest_dir),
+                "message": format!("Descarga iniciada hacia {}", target_dir),
                 "resolution": download_meta,
                 "track": track_name,
                 "artist": artist,
-                "target_path": format!("{}/{} - {}.{}", dest_dir, track_name, artist, download_meta["format"].as_str().unwrap_or("m4a"))
+                "target_dir": target_dir,
+                "filename": filename
             });
 
             ("200 OK", "application/json", result.to_string())
+        }
+
+        ("POST", "/api/download-batch") => {
+            let body = extract_body(req);
+            let st = state.lock().await;
+
+            if let Ok(batch) = serde_json::from_str::<BatchDownloadRequest>(&body) {
+                let base_dir = st.download_dir.clone();
+                let sem = Arc::clone(&st.download_semaphore);
+                let prefer_flac = batch.prefer_flac.unwrap_or(st.prefer_flac_flag);
+                let count = batch.tracks.len();
+
+                let sub_folder = match (batch.context_type.as_deref(), &batch.context_name, &batch.artist_name) {
+                    (Some("playlist"), Some(cname), _) => format!("{}/Playlists/{}", base_dir, sanitize(cname)),
+                    (Some("album"), Some(cname), Some(aname)) => format!("{}/{}/{}", base_dir, sanitize(aname), sanitize(cname)),
+                    (Some("artist"), _, Some(aname)) => format!("{}/{}/Top Canciones", base_dir, sanitize(aname)),
+                    _ => format!("{}/Lotes", base_dir),
+                };
+
+                for (idx, t) in batch.tracks.into_iter().enumerate() {
+                    let sem_clone = Arc::clone(&sem);
+                    let folder_clone = sub_folder.clone();
+                    let t_num = t.track_number.unwrap_or((idx + 1) as u32);
+                    let file_name = format!("{:02} - {} - {}", t_num, sanitize(&t.artist), sanitize(&t.name));
+
+                    trigger_ytdlp(&t.name, &t.artist, &folder_clone, &file_name, prefer_flac, sem_clone);
+                }
+
+                let res = json!({
+                    "status": "queued",
+                    "queued_tracks": count,
+                    "target_dir": sub_folder,
+                    "message": format!("Se encolaron {} pistas para descarga por lotes.", count)
+                });
+
+                return ("200 OK", "application/json", res.to_string());
+            }
+
+            ("400 Bad Request", "application/json", json!({ "error": "Formato de lote inválido" }).to_string())
         }
 
         ("POST", "/api/open-downloads") => {
@@ -173,21 +278,30 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
         ("GET", "/api/downloads/history") => {
             let st = state.lock().await;
             let mut files = Vec::new();
-            if let Ok(entries) = std::fs::read_dir(&st.download_dir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.is_file() {
-                        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                        let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
-                        let ext = path.extension().unwrap_or_default().to_string_lossy().to_string();
-                        files.push(json!({
-                            "name": name,
-                            "size_bytes": size,
-                            "extension": ext
-                        }));
+            
+            // Recorrer recursivamente la carpeta de descargas
+            fn scan_dir(dir: &std::path::Path, list: &mut Vec<serde_json::Value>) {
+                if let Ok(entries) = std::fs::read_dir(dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.is_file() {
+                            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                            let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+                            let ext = path.extension().unwrap_or_default().to_string_lossy().to_string();
+                            list.push(json!({
+                                "name": name,
+                                "path": path.to_string_lossy(),
+                                "size_bytes": size,
+                                "extension": ext
+                            }));
+                        } else if path.is_dir() {
+                            scan_dir(&path, list);
+                        }
                     }
                 }
             }
+
+            scan_dir(std::path::Path::new(&st.download_dir), &mut files);
             ("200 OK", "application/json", serde_json::to_string(&files).unwrap_or_default())
         }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-VERSION="0.2.0"
+VERSION="0.3.0"
 ARCH="amd64"
 PKG_NAME="mintplayer"
 BUILD_DIR="dist/deb/${PKG_NAME}_${VERSION}_${ARCH}"

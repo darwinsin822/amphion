@@ -19,7 +19,7 @@ const BRIDGE_JS: &str = include_str!("bridge.js");
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🎵 MintPlayer v0.2.0 — Web App Wrapper de Spotify para Linux Mint Cinnamon");
+    println!("🎵 MintPlayer v0.3.0 — Web App Wrapper de Spotify para Linux Mint Cinnamon");
     println!("=========================================================================");
 
     let args: Vec<String> = std::env::args().collect();
@@ -44,6 +44,7 @@ async fn main() -> Result<()> {
         adblock_enabled: false,
         prefer_flac_flag: false,
         download_dir,
+        download_semaphore: Arc::new(tokio::sync::Semaphore::new(2)),
     }));
 
     // Iniciar servidor web local en puerto 4567

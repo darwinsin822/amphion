@@ -1,4 +1,4 @@
-// MintPlayer Bridge - Spotify Web Player Controller, Extension Manager & Quick Download System
+// MintPlayer Bridge v0.3.0 - Spotify Web Player Controller, Extension Manager & Universal Downloader
 // Diseñado para Linux Mint Cinnamon con arquitectura desacoplada vía CDP
 
 (() => {
@@ -6,7 +6,7 @@
     return;
   }
 
-  // Prevenir que Chromium congele temporizadores o throttlee el Web Player
+  // Prevenir que Chromium congele temporizadores o throttlee el Web Player en segundo plano
   try {
     Object.defineProperty(Document.prototype, 'hidden', { configurable: true, get: () => false });
     Object.defineProperty(Document.prototype, 'visibilityState', { configurable: true, get: () => 'visible' });
@@ -79,7 +79,7 @@
         position: fixed;
         bottom: 96px;
         right: 24px;
-        background: #282828;
+        background: #242424;
         color: #ffffff;
         padding: 14px 22px;
         border-radius: 8px;
@@ -87,7 +87,7 @@
         font-size: 13px;
         font-weight: 600;
         z-index: 10000002;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.85);
         border-left: 4px solid #1ed760;
         display: flex;
         align-items: center;
@@ -118,6 +118,7 @@
   const getCurrentTrackInfo = async () => {
     let name = "Canción en Reproducción";
     let artist = "Spotify";
+    let album = null;
     let durationMs = 0;
 
     try {
@@ -129,12 +130,14 @@
           if (state.item.artists && state.item.artists.length > 0) {
             artist = state.item.artists.map(a => a.name).join(', ');
           }
+          if (state.item.album && state.item.album.name) {
+            album = state.item.album.name;
+          }
           durationMs = state.item.duration?.milliseconds || 0;
         }
       }
     } catch (e) {}
 
-    // Fallback por DOM si React no devolvió
     if (name === "Canción en Reproducción") {
       const domTitle = document.querySelector('[data-testid="now-playing-widget"] [data-testid="context-item-link"]') ||
                        document.querySelector('[data-testid="now-playing-widget"] a') ||
@@ -145,40 +148,227 @@
       if (domArtist) artist = domArtist.textContent.trim();
     }
 
-    return { name, artist, durationMs };
+    return { name, artist, album, durationMs };
   };
 
-  // Función de Descarga Rápida (1-Click)
-  const triggerQuickDownload = async (preferFlac = false) => {
-    const track = await getCurrentTrackInfo();
-    const formatName = preferFlac ? "FLAC Lossless" : "YouTube 320 kbps";
-    showToast(`Iniciando descarga rápida: <strong>${track.name} - ${track.artist}</strong> (${formatName})...`);
+  // Descarga rápida individual
+  const triggerDownloadTrack = async (trackName, artistName, albumName, trackNum, preferFlac = false) => {
+    const formatName = preferFlac ? "FLAC Hi-Res" : "YouTube 320 kbps";
+    showToast(`Iniciando descarga: <strong>${trackName} - ${artistName}</strong> (${formatName})...`);
 
     try {
       const res = await fetch('http://127.0.0.1:4567/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          track: track.name,
-          artist: track.artist,
+          track: trackName,
+          artist: artistName,
+          album: albumName,
+          track_number: trackNum,
           prefer_flac: preferFlac
         })
       });
 
       if (res.ok) {
-        const data = await res.json();
-        showToast(`✅ Descarga completada: ${track.name} guardado en ~/Descargas/Spotify/`);
-      } else {
-        showToast(`Descarga procesada en segundo plano hacia ~/Descargas/Spotify/`);
+        showToast(`✅ Descarga completada: ${trackName} en ~/Descargas/Spotify/`);
+        return true;
       }
-    } catch (e) {
-      showToast(`Descarga iniciada hacia ~/Descargas/Spotify/`);
-    }
+    } catch (e) {}
+    showToast(`Descarga encolada: ${trackName}`);
+    return true;
   };
 
-  // Inyección del botón de Extensiones en lugar del botón "Explorar Premium"
+  // Inyección de Botones en Cada Fila de Canción (Tracklist Rows)
+  const injectTracklistDownloadButtons = () => {
+    const rows = document.querySelectorAll('[data-testid="tracklist-row"]');
+    rows.forEach((row, idx) => {
+      if (row.querySelector('.mintplayer-row-dl-btn')) return;
+
+      // Extraer metadatos de la fila
+      const titleEl = row.querySelector('[data-testid="internal-track-link"]') ||
+                      row.querySelector('div[dir="auto"]') ||
+                      row.querySelector('.standalone-ellipsis-one-line');
+      if (!titleEl) return;
+      const trackName = titleEl.textContent.trim();
+
+      const artistEls = row.querySelectorAll('a[href*="/artist/"]') || [];
+      let artistName = "Varios Artistas";
+      if (artistEls.length > 0) {
+        artistName = Array.from(artistEls).map(a => a.textContent.trim()).join(', ');
+      }
+
+      // Buscar celda derecha (duración o acciones)
+      const lastCell = row.lastElementChild;
+      if (!lastCell) return;
+
+      const dlBtn = document.createElement('button');
+      dlBtn.className = 'mintplayer-row-dl-btn';
+      dlBtn.title = `Descargar "${trackName} - ${artistName}" a ~/Descargas/Spotify/`;
+      dlBtn.innerHTML = `⬇️`;
+      dlBtn.style.cssText = `
+        background: none;
+        border: none;
+        color: #b3b3b3;
+        cursor: pointer;
+        font-size: 14px;
+        padding: 4px 8px;
+        margin-right: 8px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.15s, color 0.15s;
+        vertical-align: middle;
+      `;
+
+      dlBtn.onmouseenter = () => { dlBtn.style.color = '#1ed760'; dlBtn.style.transform = 'scale(1.2)'; };
+      dlBtn.onmouseleave = () => { if (!dlBtn.dataset.downloaded) { dlBtn.style.color = '#b3b3b3'; dlBtn.style.transform = 'scale(1)'; } };
+
+      dlBtn.onclick = async (e) => {
+        e.stopPropagation();
+        dlBtn.disabled = true;
+        dlBtn.innerHTML = `⏳`;
+        dlBtn.style.color = '#1ed760';
+
+        await triggerDownloadTrack(trackName, artistName, null, idx + 1, false);
+
+        dlBtn.innerHTML = `✓`;
+        dlBtn.dataset.downloaded = "true";
+        dlBtn.style.color = '#1ed760';
+        dlBtn.title = "✅ Pista descargada con éxito";
+      };
+
+      // Inyectar antes del último elemento o al principio de la última celda
+      lastCell.style.display = 'flex';
+      lastCell.style.alignItems = 'center';
+      lastCell.insertBefore(dlBtn, lastCell.firstChild);
+    });
+  };
+
+  // Inyección de Botón de Descarga por Lotes en Encabezados (Playlists / Álbumes)
+  const injectActionBarBatchButton = () => {
+    const actionBars = document.querySelectorAll('[data-testid="action-bar-row"]');
+    actionBars.forEach(bar => {
+      if (bar.querySelector('.mintplayer-batch-dl-btn')) return;
+
+      const batchBtn = document.createElement('button');
+      batchBtn.className = 'mintplayer-batch-dl-btn';
+      batchBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 6px;">
+          <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+        </svg>
+        <span>Descargar Todo</span>
+      `;
+      batchBtn.title = "Descargar todas las canciones de esta lista o álbum a ~/Descargas/Spotify/";
+      batchBtn.style.cssText = `
+        background-color: transparent;
+        color: #b3b3b3;
+        border: 1px solid #727272;
+        border-radius: 500px;
+        padding: 6px 16px;
+        font-family: CircularSp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        margin-left: 12px;
+        transition: transform 0.15s, border-color 0.15s, color 0.15s;
+        height: 34px;
+        box-sizing: border-box;
+      `;
+
+      batchBtn.onmouseenter = () => {
+        batchBtn.style.borderColor = '#ffffff';
+        batchBtn.style.color = '#ffffff';
+        batchBtn.style.transform = 'scale(1.04)';
+      };
+      batchBtn.onmouseleave = () => {
+        batchBtn.style.borderColor = '#727272';
+        batchBtn.style.color = '#b3b3b3';
+        batchBtn.style.transform = 'scale(1)';
+      };
+
+      batchBtn.onclick = async () => {
+        batchBtn.disabled = true;
+        batchBtn.style.opacity = '0.6';
+
+        // Determinar contexto actual
+        const isAlbum = window.location.pathname.includes('/album');
+        const isPlaylist = window.location.pathname.includes('/playlist');
+        const isArtist = window.location.pathname.includes('/artist');
+
+        let contextType = isAlbum ? "album" : isPlaylist ? "playlist" : isArtist ? "artist" : "collection";
+        let contextName = document.querySelector('h1')?.textContent.trim() || "Lista de Canciones";
+
+        // Extraer todas las filas visibles
+        const rows = document.querySelectorAll('[data-testid="tracklist-row"]');
+        const tracks = [];
+
+        rows.forEach((row, i) => {
+          const titleEl = row.querySelector('[data-testid="internal-track-link"]') ||
+                          row.querySelector('div[dir="auto"]') ||
+                          row.querySelector('.standalone-ellipsis-one-line');
+          if (!titleEl) return;
+          const name = titleEl.textContent.trim();
+
+          const artistEls = row.querySelectorAll('a[href*="/artist/"]') || [];
+          let artist = "Artista";
+          if (artistEls.length > 0) {
+            artist = Array.from(artistEls).map(a => a.textContent.trim()).join(', ');
+          }
+
+          tracks.push({
+            name,
+            artist,
+            track_number: i + 1
+          });
+        });
+
+        if (tracks.length === 0) {
+          showToast('No se encontraron canciones en esta vista para descargar.', false);
+          batchBtn.disabled = false;
+          batchBtn.style.opacity = '1';
+          return;
+        }
+
+        showToast(`⚡ Encolando ${tracks.length} canciones de "${contextName}" para descarga en segundo plano...`);
+
+        try {
+          const res = await fetch('http://127.0.0.1:4567/api/download-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              context_type: contextType,
+              context_name: contextName,
+              artist_name: tracks[0]?.artist || "Spotify",
+              tracks
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            showToast(`✅ ${data.message} Organizado en ~/Descargas/Spotify/`);
+            batchBtn.innerHTML = `<span>✓ Encolado (${tracks.length})</span>`;
+            batchBtn.style.color = '#1ed760';
+            batchBtn.style.borderColor = '#1ed760';
+          }
+        } catch (e) {
+          showToast(`Lote encolado para descarga.`);
+        }
+
+        setTimeout(() => {
+          batchBtn.disabled = false;
+          batchBtn.style.opacity = '1';
+        }, 3000);
+      };
+
+      bar.appendChild(batchBtn);
+    });
+  };
+
+  // Inyección del botón de Extensiones en lugar de "Explorar Premium"
   const injectPremiumReplacement = () => {
-    // Buscar el botón original "Explorar Premium" o "Upgrade"
     const candidates = Array.from(document.querySelectorAll('button, a'));
     const premiumBtn = candidates.find(el => {
       const text = (el.textContent || '').trim().toLowerCase();
@@ -207,7 +397,6 @@
         premiumBtn.parentElement.insertBefore(btn, premiumBtn);
       }
     } else {
-      // Si aún no está en el DOM, colocarlo en el contenedor superior derecho
       const topBarActions = document.querySelector('[data-testid="top-bar"] div:last-child') ||
                             document.querySelector('.main-topBar-actions') ||
                             document.querySelector('header');
@@ -221,7 +410,7 @@
     }
   };
 
-  // Inyección del botón de Descarga Rápida en la barra de reproducción inferior
+  // Inyección del botón de Descarga en la barra inferior
   const injectBottomDownloadBtn = () => {
     if (document.getElementById('mintplayer-quick-dl-btn')) return;
     const playerBar = document.querySelector('[data-testid="now-playing-bar"]') || 
@@ -233,7 +422,7 @@
     dlBtn.title = "⚡ Descarga Rápida (1-Click)";
     dlBtn.innerHTML = `
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
       </svg>
     `;
     dlBtn.style.cssText = `
@@ -249,9 +438,10 @@
     `;
     dlBtn.onmouseenter = () => { dlBtn.style.color = '#1ed760'; dlBtn.style.transform = 'scale(1.18)'; };
     dlBtn.onmouseleave = () => { dlBtn.style.color = '#b3b3b3'; dlBtn.style.transform = 'scale(1)'; };
-    dlBtn.onclick = (e) => {
+    dlBtn.onclick = async (e) => {
       e.stopPropagation();
-      triggerQuickDownload(false);
+      const track = await getCurrentTrackInfo();
+      await triggerDownloadTrack(track.name, track.artist, track.album, null, false);
     };
 
     const likeBtn = playerBar.querySelector('[data-testid="add-button"]');
@@ -316,7 +506,7 @@
         #mintplayer-modal-content {
           background: #181818;
           border: 1px solid #282828;
-          width: 580px;
+          width: 600px;
           max-width: 92vw;
           max-height: 88vh;
           overflow-y: auto;
@@ -411,7 +601,7 @@
             <span style="font-size: 24px;">🧩</span>
             <div>
               <h2 style="margin: 0; font-size: 18px; font-weight: 700;">Extensiones & Descargas Rápidas</h2>
-              <div style="font-size: 12px; color: #a7a7a7;">MintPlayer • Integración Oficial Web Player Spotify</div>
+              <div style="font-size: 12px; color: #a7a7a7;">MintPlayer v0.3.0 • Ecosistema Completo Orpheon</div>
             </div>
           </div>
           <button id="mp-close-x" style="background: none; border: none; color: #b3b3b3; font-size: 22px; cursor: pointer;">✕</button>
@@ -463,12 +653,12 @@
         </div>
 
         <!-- 2. GESTOR DE EXTENSIONES (ESTILO ORFEO) -->
-        <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #b3b3b3; text-transform: uppercase; letter-spacing: 0.5px;">Extensiones Instaladas</h3>
+        <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #b3b3b3; text-transform: uppercase; letter-spacing: 0.5px;">Extensiones Activas</h3>
         
         <div style="background: #222; border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; border-left: 4px solid #ff4444; display: flex; justify-content: space-between; align-items: center;">
           <div>
             <div style="font-weight: 700; font-size: 13px;">🔴 YouTube Audio Resolver v1.1.0</div>
-            <div style="font-size: 12px; color: #999;">Motor principal para búsqueda y extracción ultra rápida (M4A/MP3 320 kbps)</div>
+            <div style="font-size: 12px; color: #999;">Motor principal para búsqueda y extracción ultra rápida (320 kbps)</div>
           </div>
           <span style="font-size: 11px; font-weight: 700; background: rgba(255,68,68,0.2); color: #ff6b6b; padding: 3px 8px; border-radius: 4px;">★ Principal</span>
         </div>
@@ -491,7 +681,7 @@
         </div>
 
         <div style="margin-top: 18px; padding-top: 12px; border-top: 1px solid #282828; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #777;">
-          <span>Motor: <strong>yt-dlp + ffmpeg</strong></span>
+          <span>Pool Concurrente: <strong>2 hilos activos</strong></span>
           <span>Widevine DRM: <strong>Habilitado</strong></span>
         </div>
       </div>
@@ -537,7 +727,7 @@
           if (files.length === 0) {
             container.innerHTML = '<div style="padding: 6px; color: #666;">No hay descargas aún en ~/Descargas/Spotify/</div>';
           } else {
-            container.innerHTML = files.map(f => `
+            container.innerHTML = files.slice(0, 10).map(f => `
               <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px; border-bottom: 1px solid #2a2a2a;">
                 <span style="color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 380px;">🎵 ${f.name}</span>
                 <span style="color: #1ed760; font-size: 11px;">${(f.size_bytes / (1024*1024)).toFixed(1)} MB</span>
@@ -567,39 +757,21 @@
         : 'Consultando stream de YouTube a 320 kbps...';
 
       const track = await getCurrentTrackInfo();
+      await triggerDownloadTrack(track.name, track.artist, track.album, null, isFlacSelected);
 
-      try {
-        const res = await fetch('http://127.0.0.1:4567/api/download', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            track: track.name,
-            artist: track.artist,
-            prefer_flac: isFlacSelected
-          })
-        });
+      progFill.style.width = '70%';
+      progStatus.textContent = 'Descargando y procesando audio con ffmpeg...';
 
-        progFill.style.width = '70%';
-        progStatus.textContent = 'Descargando y procesando audio con ffmpeg...';
+      setTimeout(() => {
+        progFill.style.width = '100%';
+        progStatus.textContent = `✅ Guardado con éxito: ${track.name} en ~/Descargas/Spotify/`;
+        refreshHistory();
 
         setTimeout(() => {
-          progFill.style.width = '100%';
-          progStatus.textContent = `✅ Guardado con éxito: ${track.name} en ~/Descargas/Spotify/`;
-          showToast(`✅ Descarga completada: ${track.name}`);
-          refreshHistory();
-
-          setTimeout(() => {
-            btnActionDl.disabled = false;
-            btnActionDl.style.opacity = '1';
-          }, 2000);
-        }, 1200);
-
-      } catch (e) {
-        progFill.style.width = '100%';
-        progStatus.textContent = 'Descarga enviada a ~/Descargas/Spotify/';
-        btnActionDl.disabled = false;
-        btnActionDl.style.opacity = '1';
-      }
+          btnActionDl.disabled = false;
+          btnActionDl.style.opacity = '1';
+        }, 2000);
+      }, 1200);
     };
   };
 
@@ -608,22 +780,22 @@
     const modalWrap = document.getElementById('mintplayer-modal-backdrop');
     if (modalWrap) modalWrap.style.display = 'flex';
 
-    // Actualizar datos de la canción en reproducción
     const track = await getCurrentTrackInfo();
     const nameEl = document.getElementById('mp-modal-track-name');
     const artistEl = document.getElementById('mp-modal-track-artist');
     if (nameEl) nameEl.textContent = track.name;
     if (artistEl) artistEl.textContent = track.artist;
 
-    // Actualizar historial
     const refreshBtn = document.getElementById('mp-btn-refresh-history');
     if (refreshBtn) refreshBtn.click();
   };
 
-  // Monitoreo continuo para mantener la inyección durante la navegación SPA de Spotify
+  // Ciclo continuo de inyección DOM para vigilar rutas y SPA de Spotify
   const runDomLoop = () => {
     injectPremiumReplacement();
     injectBottomDownloadBtn();
+    injectTracklistDownloadButtons();
+    injectActionBarBatchButton();
   };
 
   setInterval(runDomLoop, 1000);
