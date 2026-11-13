@@ -11,7 +11,6 @@ use cdp::{find_or_create_spotify_tab, CdpSession, ChromeProcess};
 use extensions::ExtensionManager;
 use queue::QueueManager;
 use server::{run_server, AppState};
-use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -24,7 +23,7 @@ async fn main() -> Result<()> {
     println!("=========================================================================");
 
     let args: Vec<String> = std::env::args().collect();
-    let is_login_mode = args.iter().any(|a| a == "--login" || a == "-l");
+    let _is_login_mode = args.iter().any(|a| a == "--login" || a == "-l");
     let is_daemon = args.iter().any(|a| a == "--daemon" || a == "-d");
 
     let queue = Arc::new(Mutex::new(QueueManager::new()));
@@ -54,9 +53,9 @@ async fn main() -> Result<()> {
     });
 
     let cdp_port = 9222;
-    let headless = !is_login_mode;
+    let headless = is_daemon;
 
-    println!("🚀 [1/3] Iniciando motor de reproducción Chrome (headless: {}, puerto: {})...", headless, cdp_port);
+    println!("🚀 [1/3] Iniciando Web Player oficial de Spotify (headless: {}, puerto: {})...", headless, cdp_port);
     let _chrome = ChromeProcess::spawn(cdp_port, headless)?;
 
     tokio::time::sleep(Duration::from_secs(2)).await;
@@ -66,7 +65,7 @@ async fn main() -> Result<()> {
     println!("✅ Enlazado por CDP: {}", ws_url);
 
     let session = CdpSession::connect(&ws_url).await?;
-    println!("💉 [3/3] Inyectando puente Web Player MintPlayer...");
+    println!("💉 [3/3] Inyectando puente Web Player y Gestor de Extensiones MintPlayer...");
     session.evaluate(BRIDGE_JS, false).await?;
 
     {
@@ -95,16 +94,10 @@ async fn main() -> Result<()> {
         }
     }
 
-    println!("\n🖥️ Interfaz nativa lista en: http://127.0.0.1:4567");
+    println!("\n🖥️ Web Player oficial de Spotify cargado con éxito.");
+    println!("🧩 Gestor de Extensiones inyectado (YouTube primario, FLAC secundario).");
+    println!("🌐 Servicio auxiliar de descargas activo en: http://127.0.0.1:4567");
 
-    if !is_daemon && !is_login_mode {
-        println!("🪟 Abriendo ventana de MintPlayer en Cinnamon...");
-        let _ = Command::new("google-chrome")
-            .arg("--app=http://127.0.0.1:4567")
-            .arg("--class=mintplayer")
-            .arg("--name=mintplayer")
-            .spawn();
-    }
 
     println!("🎶 MintPlayer activo. Presiona Ctrl+C para salir.");
     tokio::signal::ctrl_c().await?;

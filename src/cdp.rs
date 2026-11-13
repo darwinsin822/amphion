@@ -52,10 +52,13 @@ impl ChromeProcess {
 
         if headless {
             cmd.arg("--headless=new");
+            cmd.arg("https://open.spotify.com");
+        } else {
+            // Abrir directamente Spotify Web Player en modo App Window nativa
+            cmd.arg("--app=https://open.spotify.com");
+            cmd.arg("--class=mintplayer");
+            cmd.arg("--name=mintplayer");
         }
-
-        // Abrir directamente Spotify Web Player
-        cmd.arg("https://open.spotify.com");
 
         let child = cmd.spawn().context("Error al iniciar Google Chrome")?;
         Ok(Self {
