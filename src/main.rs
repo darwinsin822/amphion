@@ -19,7 +19,7 @@ const BRIDGE_JS: &str = include_str!("bridge.js");
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🏛️ Amphion v0.4.0 — Reproductor Soberano de Spotify para Linux Mint Cinnamon");
+    println!("🏛️ Amphion v0.4.1 — Reproductor Soberano de Spotify para Linux Mint Cinnamon");
     println!("=========================================================================");
 
     let args: Vec<String> = std::env::args().collect();
@@ -86,7 +86,12 @@ async fn main() -> Result<()> {
             if let Some(obj) = val.get("value") {
                 if let Some(token) = obj.get("accessToken").and_then(|t| t.as_str()) {
                     let is_anon = obj.get("isAnonymous").and_then(|a| a.as_bool()).unwrap_or(true);
-                    println!("🔑 Token detectado: {}...{} (Anónimo: {})", &token[..8], &token[token.len()-4..], is_anon);
+                    let display_token = if token.len() >= 12 {
+                        format!("{}...{}", &token[..8], &token[token.len()-4..])
+                    } else {
+                        "***".to_string()
+                    };
+                    println!("🔑 Token detectado: {} (Anónimo: {})", display_token, is_anon);
                     let mut st = app_state.lock().await;
                     st.api = Some(api::SpotifyApi::new(token.to_string()));
                     break;

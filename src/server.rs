@@ -56,11 +56,27 @@ pub async fn run_server(port: u16, state: Arc<Mutex<AppState>>) -> Result<()> {
             if let Ok(n) = socket.read(&mut buf).await {
                 if n == 0 { return; }
                 let req_str = String::from_utf8_lossy(&buf[..n]);
+                
+                // Extraer cabecera Origin para CORS seguro (mitigando hallazgo crítico de Nexus DeepSeek)
+                let origin = req_str.lines()
+                    .find(|l| l.to_lowercase().starts_with("origin:"))
+                    .and_then(|l| l.split_once(':').map(|x| x.1.trim()))
+                    .unwrap_or("");
+
+                let allowed_origin = if origin == "https://open.spotify.com" 
+                    || origin.starts_with("http://127.0.0.1") 
+                    || origin.starts_with("http://localhost") 
+                    || origin.is_empty() {
+                    if origin.is_empty() { "*" } else { origin }
+                } else {
+                    "null"
+                };
+
                 let (status, mime, body) = handle_request(&req_str, state_clone).await;
 
                 let resp = format!(
-                    "HTTP/1.1 {}\r\nContent-Type: {}\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                    status, mime, body.len(), body
+                    "HTTP/1.1 {}\r\nContent-Type: {}\r\nAccess-Control-Allow-Origin: {}\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    status, mime, allowed_origin, body.len(), body
                 );
                 let _ = socket.write_all(resp.as_bytes()).await;
             }
@@ -71,11 +87,36 @@ pub async fn run_server(port: u16, state: Arc<Mutex<AppState>>) -> Result<()> {
 }
 
 fn sanitize(s: &str) -> String {
-    s.chars()
-        .map(|c| if c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|' { '_' } else { c })
-        .collect::<String>()
-        .trim()
-        .to_string()
+    // Mitigación de Path Traversal auditada por Nexus: eliminar secuencias ".." y caracteres prohibidos
+    let cleaned = s.replace("..", "")
+        .chars()
+        .map(|c| if c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|' || c == '\0' { '_' } else { c })
+        .collect::<String>();
+    
+    let trimmed = cleaned.trim().trim_matches('.').trim();
+    if trimmed.is_empty() {
+        "Desconocido".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn find_ytdlp_binary() -> String {
+    // 1. Probar HOME/.local/bin/yt-dlp
+    if let Ok(home) = std::env::var("HOME") {
+        let user_bin = std::path::PathBuf::from(home).join(".local/bin/yt-dlp");
+        if user_bin.exists() {
+            return user_bin.to_string_lossy().to_string();
+        }
+    }
+    // 2. Probar rutas estándar del sistema
+    for p in &["/usr/local/bin/yt-dlp", "/usr/bin/yt-dlp", "/bin/yt-dlp"] {
+        if std::path::Path::new(p).exists() {
+            return p.to_string();
+        }
+    }
+    // 3. Fallback a PATH
+    "yt-dlp".to_string()
 }
 
 fn trigger_ytdlp(
@@ -92,27 +133,28 @@ fn trigger_ytdlp(
     let file = target_filename.to_string();
 
     tokio::spawn(async move {
-        let _permit = sem.acquire().await;
-        let _ = std::fs::create_dir_all(&dir);
+        let Ok(_permit) = sem.acquire().await else { return; };
+        let _ = tokio::fs::create_dir_all(&dir).await;
 
-        let ytdlp_path = if std::path::Path::new("/home/darwinsin/.local/bin/yt-dlp").exists() {
-            "/home/darwinsin/.local/bin/yt-dlp"
-        } else {
-            "yt-dlp"
-        };
-
+        let ytdlp_path = find_ytdlp_binary();
         let query = format!("ytsearch1:{} {} audio", t_name, a_name);
         let audio_format = if prefer_flac { "flac" } else { "mp3" };
         let out_tmpl = format!("{}/{}.%(ext)s", dir, file);
 
-        let _ = std::process::Command::new(ytdlp_path)
-            .arg("-x")
-            .arg("--audio-format").arg(audio_format)
-            .arg("--audio-quality").arg("320K")
-            .arg("--no-playlist")
+        // Uso de tokio::process::Command asíncrono para no bloquear los workers del runtime Tokio
+        let mut cmd = tokio::process::Command::new(ytdlp_path);
+        cmd.arg("-x")
+            .arg("--audio-format").arg(audio_format);
+
+        if !prefer_flac {
+            cmd.arg("--audio-quality").arg("320K");
+        }
+
+        cmd.arg("--no-playlist")
             .arg("-o").arg(&out_tmpl)
-            .arg(&query)
-            .status();
+            .arg(&query);
+
+        let _ = cmd.status().await;
     });
 }
 

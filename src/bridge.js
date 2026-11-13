@@ -1,10 +1,82 @@
-// Amphion Bridge v0.4.0 - Spotify Web Player Controller, Extension Manager & Universal Downloader
+// Amphion Bridge v0.4.1 - Spotify Web Player Controller, Extension Manager & Universal Downloader
 // Diseñado para Linux Mint Cinnamon con arquitectura desacoplada vía CDP
 
 (() => {
   if ((window.Amphion && window.Amphion.ready) || (window.MintPlayer && window.MintPlayer.ready)) {
     return;
   }
+
+  // Inyección de estilos globales permanentes para eliminar Explorar Premium y optimizar la interfaz
+  try {
+    const globalStyle = document.createElement('style');
+    globalStyle.id = 'amphion-global-injected-styles';
+    globalStyle.innerHTML = `
+      /* Eliminar Explorar Premium de forma absoluta sin parpadeo (Cero CPU) */
+      [data-testid="upgrade-button"],
+      a[href*="/premium"],
+      button[data-testid="upgrade-button"],
+      .main-topBar-UpgradeButton,
+      [aria-label*="Explorar Premium" i],
+      [aria-label*="Explore Premium" i],
+      [aria-label*="Mejora tu cuenta" i] {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      /* Insignia verde circular de descarga (Estilo Spotify Original - Imagen 2) */
+      .amphion-downloaded-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        min-width: 14px;
+        border-radius: 50%;
+        background-color: #1ed760;
+        color: #000000;
+        margin-right: 6px;
+        vertical-align: middle;
+        flex-shrink: 0;
+      }
+
+      /* Switch toggle verde estilo Imagen 1 */
+      .amphion-toggle-switch {
+        width: 36px;
+        height: 20px;
+        background-color: #1ed760;
+        border-radius: 10px;
+        position: relative;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+      .amphion-toggle-switch.off {
+        background-color: #535353;
+      }
+      .amphion-toggle-thumb {
+        width: 16px;
+        height: 16px;
+        background-color: #000000;
+        border-radius: 50%;
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        transition: transform 0.2s ease;
+      }
+      .amphion-toggle-switch.off .amphion-toggle-thumb {
+        transform: translateX(-16px);
+        background-color: #ffffff;
+      }
+    `;
+    if (!document.getElementById('amphion-global-injected-styles')) {
+      document.head.appendChild(globalStyle);
+    }
+  } catch (e) {}
 
   // Prevenir que Chromium congele temporizadores o throttlee el Web Player en segundo plano
   try {
@@ -178,11 +250,11 @@
     return true;
   };
 
-  // Inyección de Botones en Cada Fila de Canción (Tracklist Rows)
+  // Inyección de Botones en Cada Fila de Canción (Tracklist Rows - Estilo Imagen 2)
   const injectTracklistDownloadButtons = () => {
     const rows = document.querySelectorAll('[data-testid="tracklist-row"]');
     rows.forEach((row, idx) => {
-      if (row.querySelector('.mintplayer-row-dl-btn')) return;
+      if (row.querySelector('.amphion-row-dl-btn')) return;
 
       // Extraer metadatos de la fila
       const titleEl = row.querySelector('[data-testid="internal-track-link"]') ||
@@ -190,6 +262,10 @@
                       row.querySelector('.standalone-ellipsis-one-line');
       if (!titleEl) return;
       const trackName = titleEl.textContent.trim();
+
+      const artistSubrow = row.querySelector('[data-testid="tracklist-row-artists"]') ||
+                           row.querySelector('span[dir="auto"]') ||
+                           row.querySelector('.standalone-ellipsis-one-line + div');
 
       const artistEls = row.querySelectorAll('a[href*="/artist/"]') || [];
       let artistName = "Varios Artistas";
@@ -202,12 +278,14 @@
       if (!lastCell) return;
 
       const dlBtn = document.createElement('button');
-      dlBtn.className = 'mintplayer-row-dl-btn';
+      dlBtn.className = 'amphion-row-dl-btn';
       dlBtn.title = `Descargar "${trackName} - ${artistName}" a ~/Descargas/Spotify/`;
-      // SVG premium: flecha hacia abajo sobre bandeja (estilo Spotify/Orpheon)
+      
+      // Iconos SVG: flecha de descarga y spinner
       const SVG_DL = `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1a.75.75 0 0 1 .75.75v7.19l2.47-2.47a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L3.72 7.53a.75.75 0 0 1 1.06-1.06l2.47 2.47V1.75A.75.75 0 0 1 8 1zM2.75 13.5a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H2.75z"/></svg>`;
       const SVG_SPINNER = `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" style="animation:mp-spin 0.9s linear infinite" aria-hidden="true"><path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zm0 1.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9z" opacity=".25"/><path d="M8 2a6 6 0 0 1 6 6h-1.5A4.5 4.5 0 0 0 8 3.5V2z"/></svg>`;
-      const SVG_CHECK = `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>`;
+      const SVG_CHECK = `<svg viewBox="0 0 16 16" width="16" height="16" fill="#1ed760" aria-hidden="true"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>`;
+
       dlBtn.innerHTML = SVG_DL;
       dlBtn.style.cssText = `
         background: transparent;
@@ -229,13 +307,12 @@
         opacity: 0;
       `;
 
-      // Mostrar el botón solo cuando el row está en hover (igual que los botones nativos de Spotify)
       row.addEventListener('mouseenter', () => { if (!dlBtn.dataset.downloaded) dlBtn.style.opacity = '1'; });
       row.addEventListener('mouseleave', () => { if (!dlBtn.dataset.downloaded) dlBtn.style.opacity = '0'; });
 
       dlBtn.onmouseenter = () => {
         dlBtn.style.color = '#1ed760';
-        dlBtn.style.transform = 'scale(1.1)';
+        dlBtn.style.transform = 'scale(1.15)';
         dlBtn.style.background = 'rgba(255,255,255,0.08)';
       };
       dlBtn.onmouseleave = () => {
@@ -257,66 +334,78 @@
         dlBtn.dataset.downloaded = "true";
         dlBtn.style.color = '#1ed760';
         dlBtn.style.opacity = '1';
-        dlBtn.title = "✅ Pista descargada con éxito";
+        dlBtn.title = "✅ Pista descargada con éxito en ~/Descargas/Spotify/";
+
+        // Agregar insignia circular verde de descarga en los metadatos (Idéntico a Imagen 2)
+        if (artistSubrow && !artistSubrow.querySelector('.amphion-downloaded-badge')) {
+          const greenBadge = document.createElement('span');
+          greenBadge.className = 'amphion-downloaded-badge';
+          greenBadge.title = "Descargado en ~/Descargas/Spotify/";
+          greenBadge.innerHTML = `
+            <svg viewBox="0 0 16 16" width="10" height="10" fill="#000000">
+              <path d="M8 2.5v7m0 0l-2.2-2.2m2.2 2.2l2.2-2.2M4 11.5h8" stroke="#000000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          `;
+          artistSubrow.insertBefore(greenBadge, artistSubrow.firstChild);
+        }
       };
 
-      // Inyectar antes del último elemento o al principio de la última celda
       lastCell.style.display = 'flex';
       lastCell.style.alignItems = 'center';
       lastCell.insertBefore(dlBtn, lastCell.firstChild);
     });
   };
 
-  // Inyección de Botón de Descarga por Lotes en Encabezados (Playlists / Álbumes)
+  // Inyección de Botón de Descarga Circular en Barra de Acciones (Playlists / Álbumes - Estilo Imagen 3)
   const injectActionBarBatchButton = () => {
     const actionBars = document.querySelectorAll('[data-testid="action-bar-row"]');
     actionBars.forEach(bar => {
-      if (bar.querySelector('.mintplayer-batch-dl-btn')) return;
+      if (bar.querySelector('.amphion-actionbar-circle-dl-btn')) return;
 
-      const batchBtn = document.createElement('button');
-      batchBtn.className = 'mintplayer-batch-dl-btn';
-      batchBtn.innerHTML = `
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" style="margin-right: 7px; flex-shrink:0;" aria-hidden="true"><path d="M8 1a.75.75 0 0 1 .75.75v7.19l2.47-2.47a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L3.72 7.53a.75.75 0 0 1 1.06-1.06l2.47 2.47V1.75A.75.75 0 0 1 8 1zM2.75 13.5a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H2.75z"/></svg>
-        <span>Descargar Todo</span>
+      const circleBtn = document.createElement('button');
+      circleBtn.className = 'amphion-actionbar-circle-dl-btn';
+      circleBtn.title = "Descargar lista o álbum completo a ~/Descargas/Spotify/";
+      // SVG circular con flecha hacia abajo idéntico al botón de Imagen 3
+      circleBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.17l2.59-2.58L17 15l-5 5-5-5 1.41-1.41L11 16.17V7h2v9.17z"/>
+        </svg>
       `;
-      batchBtn.title = "Descargar todas las canciones de esta lista o álbum a ~/Descargas/Spotify/";
-      batchBtn.style.cssText = `
+      circleBtn.style.cssText = `
         background-color: transparent;
         color: #b3b3b3;
         border: 1px solid rgba(255,255,255,0.3);
-        border-radius: 500px;
-        padding: 0 16px;
-        font-family: CircularSp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        font-size: 13px;
-        font-weight: 700;
-        letter-spacing: 0.03em;
+        border-radius: 50%;
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        padding: 0;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         margin-left: 12px;
-        height: 32px;
         box-sizing: border-box;
         transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
       `;
 
-      batchBtn.onmouseenter = () => {
-        batchBtn.style.borderColor = '#1ed760';
-        batchBtn.style.color = '#1ed760';
-        batchBtn.style.transform = 'scale(1.04)';
+      circleBtn.onmouseenter = () => {
+        circleBtn.style.borderColor = '#1ed760';
+        circleBtn.style.color = '#1ed760';
+        circleBtn.style.transform = 'scale(1.08)';
       };
-      batchBtn.onmouseleave = () => {
-        if (!batchBtn.dataset.queued) {
-          batchBtn.style.borderColor = 'rgba(255,255,255,0.3)';
-          batchBtn.style.color = '#b3b3b3';
+      circleBtn.onmouseleave = () => {
+        if (!circleBtn.dataset.queued) {
+          circleBtn.style.borderColor = 'rgba(255,255,255,0.3)';
+          circleBtn.style.color = '#b3b3b3';
         }
-        batchBtn.style.transform = 'scale(1)';
+        circleBtn.style.transform = 'scale(1)';
       };
 
-      batchBtn.onclick = async () => {
-        batchBtn.disabled = true;
-        batchBtn.style.opacity = '0.6';
+      circleBtn.onclick = async () => {
+        circleBtn.disabled = true;
+        circleBtn.style.opacity = '0.7';
 
-        // Determinar contexto actual
         const isAlbum = window.location.pathname.includes('/album');
         const isPlaylist = window.location.pathname.includes('/playlist');
         const isArtist = window.location.pathname.includes('/artist');
@@ -324,7 +413,6 @@
         let contextType = isAlbum ? "album" : isPlaylist ? "playlist" : isArtist ? "artist" : "collection";
         let contextName = document.querySelector('h1')?.textContent.trim() || "Lista de Canciones";
 
-        // Extraer todas las filas visibles
         const rows = document.querySelectorAll('[data-testid="tracklist-row"]');
         const tracks = [];
 
@@ -341,21 +429,17 @@
             artist = Array.from(artistEls).map(a => a.textContent.trim()).join(', ');
           }
 
-          tracks.push({
-            name,
-            artist,
-            track_number: i + 1
-          });
+          tracks.push({ name, artist, track_number: i + 1 });
         });
 
         if (tracks.length === 0) {
           showToast('No se encontraron canciones en esta vista para descargar.', false);
-          batchBtn.disabled = false;
-          batchBtn.style.opacity = '1';
+          circleBtn.disabled = false;
+          circleBtn.style.opacity = '1';
           return;
         }
 
-        showToast(`⚡ Encolando ${tracks.length} canciones de "${contextName}" para descarga en segundo plano...`);
+        showToast(`⚡ Encolando ${tracks.length} canciones de "${contextName}" a ~/Descargas/Spotify/...`);
 
         try {
           const res = await fetch('http://127.0.0.1:4567/api/download-batch', {
@@ -372,67 +456,65 @@
           if (res.ok) {
             const data = await res.json();
             showToast(`✅ ${data.message} Organizado en ~/Descargas/Spotify/`);
-            batchBtn.innerHTML = `
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" style="margin-right:6px;flex-shrink:0"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>
-              <span>Encolado (${tracks.length})</span>`;
-            batchBtn.dataset.queued = "true";
-            batchBtn.style.color = '#1ed760';
-            batchBtn.style.borderColor = '#1ed760';
+            circleBtn.dataset.queued = "true";
+            circleBtn.style.color = '#1ed760';
+            circleBtn.style.borderColor = '#1ed760';
+            circleBtn.innerHTML = `
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="#1ed760">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5l-4-4 1.41-1.41L11 13.67l6.59-6.58L19 8.5l-8 8z"/>
+              </svg>
+            `;
           }
         } catch (e) {
           showToast(`Lote encolado para descarga.`);
         }
 
         setTimeout(() => {
-          batchBtn.disabled = false;
-          batchBtn.style.opacity = '1';
-        }, 3000);
+          circleBtn.disabled = false;
+          circleBtn.style.opacity = '1';
+        }, 2500);
       };
 
-      bar.appendChild(batchBtn);
+      // Insertar junto al botón de añadir (+) o al principio de la barra
+      const addBtn = bar.querySelector('[data-testid="add-button"]') || bar.querySelector('button');
+      if (addBtn && addBtn.nextSibling) {
+        bar.insertBefore(circleBtn, addBtn.nextSibling);
+      } else {
+        bar.appendChild(circleBtn);
+      }
     });
   };
 
-  // Inyección del botón de Extensiones en lugar de "Explorar Premium"
+  // Eliminación absoluta de "Explorar Premium" e inserción del botón "Extensiones"
   const injectPremiumReplacement = () => {
-    const candidates = Array.from(document.querySelectorAll('button, a'));
-    const premiumBtn = candidates.find(el => {
-      const text = (el.textContent || '').trim().toLowerCase();
-      const href = el.getAttribute('href') || '';
-      const testId = el.getAttribute('data-testid') || '';
-      return testId === 'upgrade-button' || 
-             href.includes('/premium') || 
-             text.includes('explorar premium') || 
-             text.includes('explore premium') ||
-             text === 'premium';
+    // 1. Eliminar permanentemente los botones de premium de cualquier lista
+    const premiumElements = document.querySelectorAll(
+      '[data-testid="upgrade-button"], a[href*="/premium"], button[data-testid="upgrade-button"], .main-topBar-UpgradeButton'
+    );
+    premiumElements.forEach(el => {
+      el.remove();
     });
 
-    let btn = document.getElementById('mintplayer-ext-nav-btn');
+    let btn = document.getElementById('amphion-ext-nav-btn');
     if (!btn) {
       btn = document.createElement('button');
-      btn.id = 'mintplayer-ext-nav-btn';
+      btn.id = 'amphion-ext-nav-btn';
       btn.className = 'mintplayer-premium-style-btn';
-      btn.innerHTML = `Extensiones`;
-      btn.title = "Gestor de Extensiones y Descargas Rápidas";
+      btn.innerHTML = `
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+          <path d="M9.5 1.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-4 4A1.5 1.5 0 1 1 2.5 4a1.5 1.5 0 0 1 3 1.5zm8 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-4 4A1.5 1.5 0 1 1 8 8a1.5 1.5 0 0 1 1.5 1.5zm-4 4A1.5 1.5 0 1 1 4 12a1.5 1.5 0 0 1 1.5 1.5zm8 0a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+        </svg>
+        <span>Extensiones</span>
+      `;
+      btn.title = "Ajustes de Extensiones, Fuentes y Descargas (Amphion)";
       btn.onclick = () => openModal();
     }
 
-    if (premiumBtn) {
-      premiumBtn.style.display = 'none';
-      if (premiumBtn.parentElement && btn.parentElement !== premiumBtn.parentElement) {
-        premiumBtn.parentElement.insertBefore(btn, premiumBtn);
-      }
-    } else {
-      const topBarActions = document.querySelector('[data-testid="top-bar"] div:last-child') ||
-                            document.querySelector('.main-topBar-actions') ||
-                            document.querySelector('header');
-      if (topBarActions && !topBarActions.contains(btn)) {
-        btn.style.position = 'fixed';
-        btn.style.top = '14px';
-        btn.style.right = '175px';
-        btn.style.zIndex = '99999';
-        document.body.appendChild(btn);
-      }
+    const topBarActions = document.querySelector('[data-testid="top-bar"] div:last-child') ||
+                          document.querySelector('.main-topBar-actions') ||
+                          document.querySelector('header');
+    if (topBarActions && !topBarActions.contains(btn)) {
+      topBarActions.insertBefore(btn, topBarActions.firstChild);
     }
   };
 
@@ -634,56 +716,180 @@
       </style>
 
       <div id="mintplayer-modal-content">
-        <!-- Encabezado -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <svg viewBox="0 0 512 512" width="28" height="28" fill="none" style="flex-shrink:0;">
-              <circle cx="256" cy="256" r="256" fill="#1ED760"/>
-              <path fill="#000000" d="M373.08 368.87c-4.61 7.53-14.38 9.96-21.89 5.37-59.99-36.65-135.51-44.95-224.45-24.64-8.62 1.98-17.21-3.41-19.2-12.03-1.98-8.62 3.41-17.21 12.03-19.2 97.47-22.25 181.12-12.89 248.16 28.09 7.51 4.59 9.94 14.36 5.35 21.89zm31.23-69.44c-5.8 9.45-18.18 12.48-27.63 6.68-68.7-42.2-173.4-54.4-254.66-29.72-10.65 3.22-21.91-2.84-25.13-13.48-3.22-10.65 2.84-21.91 13.48-25.13 93-28.22 208.57-14.55 287.26 34.02 9.45 5.8 12.48 18.18 6.68 27.63zm2.69-72.75C324.58 177.78 188.79 173.28 110.5 197.02c-12.63 3.84-26.07-3.33-29.91-15.96-3.84-12.63 3.33-26.07 15.96-29.91 90.03-27.35 240.01-22.1 334.65 34.05 11.37 6.74 15.11 21.51 8.37 32.88-6.72 11.39-21.48 15.11-32.57 8.39z"/>
-            </svg>
-            <div>
-              <h2 style="margin: 0; font-size: 18px; font-weight: 700;">Extensiones & Descargas Rápidas</h2>
-              <div style="font-size: 12px; color: #a7a7a7;">Amphion v0.4.0 • Ecosistema Soberano Spotify</div>
-            </div>
+        <!-- Encabezado con flecha atrás y Ajustes (Idéntico a Imagen 1) -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <button id="mp-back-btn" style="background: none; border: none; color: #ffffff; font-size: 20px; cursor: pointer; display: flex; align-items: center; padding: 0;">←</button>
+            <h2 style="margin: 0; font-size: 20px; font-weight: 700; color: #ffffff;">Ajustes</h2>
           </div>
-          <button id="mp-close-x" style="background: none; border: none; color: #b3b3b3; font-size: 22px; cursor: pointer;">✕</button>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <button id="mp-close-x" style="background: none; border: none; color: #b3b3b3; font-size: 20px; cursor: pointer;">✕</button>
+          </div>
         </div>
 
-        <!-- 1. SISTEMA DE DESCARGA RÁPIDA (1-CLICK) -->
+        <!-- Pestañas horizontales (Imagen 1): Cuentas | Fuentes (activa con línea verde) | Reproducción | Biblioteca -->
+        <div style="display: flex; gap: 24px; border-bottom: 1px solid #282828; margin-bottom: 20px;">
+          <div style="color: #a7a7a7; font-size: 14px; font-weight: 700; padding-bottom: 10px; cursor: pointer;">Cuentas</div>
+          <div style="color: #ffffff; font-size: 14px; font-weight: 700; padding-bottom: 10px; border-bottom: 3px solid #1ed760; cursor: pointer;">Fuentes</div>
+          <div style="color: #a7a7a7; font-size: 14px; font-weight: 700; padding-bottom: 10px; cursor: pointer;">Reproducción</div>
+          <div style="color: #a7a7a7; font-size: 14px; font-weight: 700; padding-bottom: 10px; cursor: pointer;">Biblioteca</div>
+        </div>
+
+        <!-- SECCIÓN 1: FUENTES DE DESCARGA (Verde, Imagen 1) -->
+        <div style="color: #1ed760; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">
+          FUENTES DE DESCARGA
+        </div>
+
+        <!-- Card Fuente 1: YouTube Music Download Helper -->
+        <div style="background: #181818; border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; border: 1px solid #282828;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <span style="color: #888; font-weight: 700; font-size: 14px; width: 14px;">1</span>
+              <div style="width: 36px; height: 36px; background: #e60000; border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(230,0,0,0.3);">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="#ffffff"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+              <div>
+                <div style="font-weight: 700; font-size: 14px; color: #ffffff;">YouTube Music Download Helper</div>
+                <div style="font-size: 12px; color: #1ed760; font-weight: 600;">Listo</div>
+              </div>
+            </div>
+            <span style="color: #b3b3b3; font-size: 16px;">˅</span>
+          </div>
+          <div style="font-size: 12px; color: #a7a7a7; margin-top: 10px; line-height: 1.4; padding-left: 28px;">
+            Se consultan de arriba hacia abajo: la primera fuente que tenga la canción entrega el archivo. Usa las flechas para cambiar el orden.
+          </div>
+        </div>
+
+        <!-- Card Fuente 2: FLAC Lossless Resolver -->
+        <div style="background: #181818; border-radius: 8px; padding: 12px 16px; margin-bottom: 22px; border: 1px solid #282828;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <span style="color: #888; font-weight: 700; font-size: 14px; width: 14px;">2</span>
+              <div style="width: 36px; height: 36px; background: #0070f3; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 10px; color: #ffffff; box-shadow: 0 4px 10px rgba(0,112,243,0.3);">
+                FLAC
+              </div>
+              <div>
+                <div style="font-weight: 700; font-size: 14px; color: #ffffff;">FLAC Lossless Resolver (Hi-Res)</div>
+                <div style="font-size: 12px; color: #00a8ff; font-weight: 600;">Listo</div>
+              </div>
+            </div>
+            <span style="color: #b3b3b3; font-size: 16px;">˅</span>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 2: METADATOS (Verde, Imagen 1) -->
+        <div style="color: #1ed760; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px;">
+          METADATOS
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid #282828;">
+          <!-- 1 Spotify -->
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <span style="color: #888; font-weight: 700; font-size: 14px; width: 14px;">1</span>
+              <div>
+                <div style="font-weight: 700; font-size: 14px; color: #ffffff;">Spotify</div>
+                <div style="font-size: 12px; color: #1ed760;">Tu cuenta, mientras tengas la sesión iniciada</div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="amphion-toggle-switch" onclick="this.classList.toggle('off')"><div class="amphion-toggle-thumb"></div></div>
+              <div style="display: flex; flex-direction: column; color: #b3b3b3; font-size: 9px; cursor: pointer;"><span>▲</span><span>▼</span></div>
+            </div>
+          </div>
+
+          <!-- 2 Deezer -->
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <span style="color: #888; font-weight: 700; font-size: 14px; width: 14px;">2</span>
+              <div>
+                <div style="font-weight: 700; font-size: 14px; color: #ffffff;">Deezer</div>
+                <div style="font-size: 12px; color: #1ed760;">Se consulta</div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="amphion-toggle-switch" onclick="this.classList.toggle('off')"><div class="amphion-toggle-thumb"></div></div>
+              <div style="display: flex; flex-direction: column; color: #b3b3b3; font-size: 9px; cursor: pointer;"><span>▲</span><span>▼</span></div>
+            </div>
+          </div>
+
+          <!-- 3 YouTube Music -->
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <span style="color: #888; font-weight: 700; font-size: 14px; width: 14px;">3</span>
+              <div>
+                <div style="font-weight: 700; font-size: 14px; color: #ffffff;">YouTube Music</div>
+                <div style="font-size: 12px; color: #1ed760;">Se consulta</div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="amphion-toggle-switch" onclick="this.classList.toggle('off')"><div class="amphion-toggle-thumb"></div></div>
+              <div style="display: flex; flex-direction: column; color: #b3b3b3; font-size: 9px; cursor: pointer;"><span>▲</span><span>▼</span></div>
+            </div>
+          </div>
+
+          <!-- 4 Tidal -->
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <span style="color: #888; font-weight: 700; font-size: 14px; width: 14px;">4</span>
+              <div>
+                <div style="font-weight: 700; font-size: 14px; color: #ffffff;">Tidal</div>
+                <div style="font-size: 12px; color: #1ed760;">Se consulta</div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="amphion-toggle-switch" onclick="this.classList.toggle('off')"><div class="amphion-toggle-thumb"></div></div>
+              <div style="display: flex; flex-direction: column; color: #b3b3b3; font-size: 9px; cursor: pointer;"><span>▲</span><span>▼</span></div>
+            </div>
+          </div>
+
+          <!-- 5 iTunes -->
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <span style="color: #888; font-weight: 700; font-size: 14px; width: 14px;">5</span>
+              <div>
+                <div style="font-weight: 700; font-size: 14px; color: #ffffff;">iTunes</div>
+                <div style="font-size: 12px; color: #1ed760;">Se consulta</div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="amphion-toggle-switch" onclick="this.classList.toggle('off')"><div class="amphion-toggle-thumb"></div></div>
+              <div style="display: flex; flex-direction: column; color: #b3b3b3; font-size: 9px; cursor: pointer;"><span>▲</span><span>▼</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 3: ACCIONES RÁPIDAS & DESCARGA DIRECTA -->
         <div class="mp-quick-dl-card">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <span style="font-size: 13px; font-weight: 700; color: #1ed760; text-transform: uppercase; letter-spacing: 0.5px;">⚡ Descarga Rápida</span>
-            <span style="font-size: 11px; background: rgba(30,215,96,0.15); color: #1ed760; padding: 3px 8px; border-radius: 4px;">Listo</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 12px; font-weight: 700; color: #1ed760; text-transform: uppercase;">⚡ Descarga de Canción Actual</span>
+            <span style="font-size: 11px; background: rgba(30,215,96,0.15); color: #1ed760; padding: 2px 8px; border-radius: 4px;">Listo</span>
           </div>
 
           <div class="mp-track-info-badge">
             <div class="mp-track-avatar">🎵</div>
             <div>
-              <div id="mp-modal-track-name" style="font-weight: 700; font-size: 15px;">Detectando pista en Spotify...</div>
-              <div id="mp-modal-track-artist" style="font-size: 13px; color: #b3b3b3;">-</div>
+              <div id="mp-modal-track-name" style="font-weight: 700; font-size: 14px;">Detectando pista en Spotify...</div>
+              <div id="mp-modal-track-artist" style="font-size: 12px; color: #b3b3b3;">-</div>
             </div>
           </div>
 
-          <!-- Selector de formato rápido -->
-          <div style="display: flex; gap: 10px; margin-bottom: 14px;">
-            <button class="mp-format-pill active" id="pill-fmt-yt">🔴 YouTube (MP3 320 kbps) ★</button>
+          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+            <button class="mp-format-pill active" id="pill-fmt-yt">🔴 YouTube (320 kbps) ★</button>
             <button class="mp-format-pill" id="pill-fmt-flac">🔷 FLAC Lossless (Hi-Res)</button>
           </div>
 
-          <!-- Botón de Acción Principal -->
           <button class="mp-dl-btn-green" id="mp-btn-action-dl">
             <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1a.75.75 0 0 1 .75.75v7.19l2.47-2.47a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L3.72 7.53a.75.75 0 0 1 1.06-1.06l2.47 2.47V1.75A.75.75 0 0 1 8 1zM2.75 13.5a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H2.75z"/></svg>
             <span>Descargar Canción Actual Ahora</span>
           </button>
 
-          <!-- Barra de Progreso y Estado -->
-          <div id="mp-modal-progress-wrap" style="display: none; margin-top: 12px;">
+          <div id="mp-modal-progress-wrap" style="display: none; margin-top: 10px;">
             <div class="mp-progress-bar-bg"><div class="mp-progress-bar-fill" id="mp-modal-progress-fill"></div></div>
-            <div id="mp-modal-progress-status" style="font-size: 12px; color: #1ed760; margin-top: 6px; font-weight: 500;">Extrayendo audio a 320 kbps...</div>
+            <div id="mp-modal-progress-status" style="font-size: 11px; color: #1ed760; margin-top: 4px;">Descargando audio...</div>
           </div>
 
-          <!-- Carpeta y botón de abrir Nemo -->
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid #333; font-size: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid #333; font-size: 12px;">
             <div>
               <span style="color: #888;">Destino:</span>
               <code style="color: #fff; margin-left: 4px;">~/Descargas/Spotify/</code>
@@ -694,37 +900,13 @@
           </div>
         </div>
 
-        <!-- 2. GESTOR DE EXTENSIONES (ESTILO ORFEO) -->
-        <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #b3b3b3; text-transform: uppercase; letter-spacing: 0.5px;">Extensiones Activas</h3>
-        
-        <div style="background: #222; border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; border-left: 4px solid #ff4444; display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-weight: 700; font-size: 13px;">🔴 YouTube Audio Resolver v1.1.0</div>
-            <div style="font-size: 12px; color: #999;">Motor principal para búsqueda y extracción ultra rápida (320 kbps)</div>
-          </div>
-          <span style="font-size: 11px; font-weight: 700; background: rgba(255,68,68,0.2); color: #ff6b6b; padding: 3px 8px; border-radius: 4px;">★ Principal</span>
+        <!-- Historial local de descargas -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; margin-bottom: 8px;">
+          <h3 style="font-size: 12px; font-weight: 700; margin: 0; color: #b3b3b3; text-transform: uppercase;">Descargas Recientes en ~/Descargas/Spotify/</h3>
+          <button id="mp-btn-refresh-history" style="background: none; border: none; color: #1ed760; font-size: 11px; cursor: pointer;">Actualizar ⟳</button>
         </div>
-
-        <div style="background: #222; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; border-left: 4px solid #00a8ff; display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-weight: 700; font-size: 13px;">🔷 FLAC Lossless Resolver v1.0.0</div>
-            <div style="font-size: 12px; color: #999;">Motor secundario para audio de alta resolución sin pérdidas (16-bit / 44.1kHz)</div>
-          </div>
-          <span style="font-size: 11px; font-weight: 700; background: rgba(0,168,255,0.2); color: #70cfff; padding: 3px 8px; border-radius: 4px;">Secundaria</span>
-        </div>
-
-        <!-- 3. HISTORIAL DE DESCARGAS DE LA SESIÓN -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <h3 style="font-size: 14px; font-weight: 700; margin: 0; color: #b3b3b3; text-transform: uppercase; letter-spacing: 0.5px;">Descargas en ~/Descargas/Spotify/</h3>
-          <button id="mp-btn-refresh-history" style="background: none; border: none; color: #1ed760; font-size: 12px; cursor: pointer;">Actualizar ⟳</button>
-        </div>
-        <div id="mp-history-list" style="background: #1c1c1c; border-radius: 8px; padding: 10px; max-height: 120px; overflow-y: auto; font-size: 12px; color: #aaa;">
+        <div id="mp-history-list" style="background: #141414; border-radius: 8px; padding: 10px; max-height: 110px; overflow-y: auto; font-size: 12px; color: #aaa; border: 1px solid #222;">
           Cargando archivos locales...
-        </div>
-
-        <div style="margin-top: 18px; padding-top: 12px; border-top: 1px solid #282828; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #777;">
-          <span>Pool Concurrente: <strong>2 hilos activos</strong></span>
-          <span>Widevine DRM: <strong>Habilitado</strong></span>
         </div>
       </div>
     `;
@@ -733,7 +915,9 @@
 
     // Eventos del modal
     const closeBtn = document.getElementById('mp-close-x');
-    closeBtn.onclick = () => { modalWrap.style.display = 'none'; };
+    if (closeBtn) closeBtn.onclick = () => { modalWrap.style.display = 'none'; };
+    const backBtn = document.getElementById('mp-back-btn');
+    if (backBtn) backBtn.onclick = () => { modalWrap.style.display = 'none'; };
     modalWrap.onclick = (e) => { if (e.target === modalWrap) modalWrap.style.display = 'none'; };
 
     let isFlacSelected = false;
