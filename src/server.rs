@@ -5,6 +5,7 @@ use crate::queue::QueueManager;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -14,6 +15,16 @@ const HTML: &str = include_str!("../ui/index.html");
 const CSS: &str = include_str!("../ui/style.css");
 const JS: &str = include_str!("../ui/app.js");
 const LOGO: &str = include_str!("../ui/logo.svg");
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrackDownloadState {
+    pub key: String,
+    pub artist: String,
+    pub title: String,
+    pub status: String, // "queued" | "downloading" | "completed" | "failed"
+    pub file_path: Option<String>,
+    pub updated_at: u64,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchTrackItem {
@@ -43,6 +54,7 @@ pub struct AppState {
     pub prefer_flac_flag: bool,
     pub download_dir: String,
     pub download_semaphore: Arc<Semaphore>,
+    pub download_tracker: Arc<Mutex<HashMap<String, TrackDownloadState>>>,
 }
 
 pub async fn run_server(port: u16, state: Arc<Mutex<AppState>>) -> Result<()> {
@@ -119,6 +131,19 @@ fn find_ytdlp_binary() -> String {
     "yt-dlp".to_string()
 }
 
+pub fn normalize_track_key(artist: &str, title: &str) -> String {
+    let clean = |s: &str| {
+        s.to_lowercase()
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { ' ' })
+            .collect::<String>()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    format!("{}:{}", clean(artist), clean(title))
+}
+
 fn trigger_ytdlp(
     track_name: &str,
     artist: &str,
@@ -126,14 +151,47 @@ fn trigger_ytdlp(
     target_filename: &str,
     prefer_flac: bool,
     sem: Arc<Semaphore>,
+    tracker: Arc<Mutex<HashMap<String, TrackDownloadState>>>,
 ) {
     let t_name = track_name.to_string();
     let a_name = artist.to_string();
     let dir = target_dir.to_string();
     let file = target_filename.to_string();
+    let key = normalize_track_key(&a_name, &t_name);
 
     tokio::spawn(async move {
+        let now_ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        // 1. Registrar estado Encolado
+        {
+            let mut trk = tracker.lock().await;
+            trk.insert(key.clone(), TrackDownloadState {
+                key: key.clone(),
+                artist: a_name.clone(),
+                title: t_name.clone(),
+                status: "queued".to_string(),
+                file_path: None,
+                updated_at: now_ts,
+            });
+        }
+
         let Ok(_permit) = sem.acquire().await else { return; };
+
+        // 2. Transición a estado Descargando en progreso
+        {
+            let mut trk = tracker.lock().await;
+            if let Some(entry) = trk.get_mut(&key) {
+                entry.status = "downloading".to_string();
+                entry.updated_at = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+            }
+        }
+
         let _ = tokio::fs::create_dir_all(&dir).await;
 
         let ytdlp_path = find_ytdlp_binary();
@@ -154,7 +212,26 @@ fn trigger_ytdlp(
             .arg("-o").arg(&out_tmpl)
             .arg(&query);
 
-        let _ = cmd.status().await;
+        let status = cmd.status().await;
+        let is_ok = status.map(|s| s.success()).unwrap_or(false);
+
+        // 3. Registrar estado Completado (visto) o Fallido
+        {
+            let mut trk = tracker.lock().await;
+            if let Some(entry) = trk.get_mut(&key) {
+                if is_ok {
+                    entry.status = "completed".to_string();
+                    let final_path = format!("{}/{}.{}", dir, file, audio_format);
+                    entry.file_path = Some(final_path);
+                } else {
+                    entry.status = "failed".to_string();
+                }
+                entry.updated_at = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+            }
+        }
     });
 }
 
@@ -239,6 +316,7 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
             let download_meta = ext_mgr.resolve_download(&track_name, &artist, prefer_flac);
             let base_dir = st.download_dir.clone();
             let sem = Arc::clone(&st.download_semaphore);
+            let tracker = Arc::clone(&st.download_tracker);
 
             let (target_dir, filename) = match (&album, track_num) {
                 (Some(alb), Some(num)) => (
@@ -255,7 +333,7 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
                 )
             };
 
-            trigger_ytdlp(&track_name, &artist, &target_dir, &filename, prefer_flac, sem);
+            trigger_ytdlp(&track_name, &artist, &target_dir, &filename, prefer_flac, sem, tracker);
 
             let result = json!({
                 "status": "success",
@@ -277,6 +355,7 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
             if let Ok(batch) = serde_json::from_str::<BatchDownloadRequest>(&body) {
                 let base_dir = st.download_dir.clone();
                 let sem = Arc::clone(&st.download_semaphore);
+                let tracker = Arc::clone(&st.download_tracker);
                 let prefer_flac = batch.prefer_flac.unwrap_or(st.prefer_flac_flag);
                 let count = batch.tracks.len();
 
@@ -289,11 +368,12 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
 
                 for (idx, t) in batch.tracks.into_iter().enumerate() {
                     let sem_clone = Arc::clone(&sem);
+                    let tracker_clone = Arc::clone(&tracker);
                     let folder_clone = sub_folder.clone();
                     let t_num = t.track_number.unwrap_or((idx + 1) as u32);
                     let file_name = format!("{:02} - {} - {}", t_num, sanitize(&t.artist), sanitize(&t.name));
 
-                    trigger_ytdlp(&t.name, &t.artist, &folder_clone, &file_name, prefer_flac, sem_clone);
+                    trigger_ytdlp(&t.name, &t.artist, &folder_clone, &file_name, prefer_flac, sem_clone, tracker_clone);
                 }
 
                 let res = json!({
@@ -307,6 +387,57 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
             }
 
             ("400 Bad Request", "application/json", json!({ "error": "Formato de lote inválido" }).to_string())
+        }
+
+        ("GET", "/api/downloads/state") => {
+            let st = state.lock().await;
+            let tracker = st.download_tracker.lock().await;
+
+            let mut active = serde_json::Map::new();
+            let mut completed_keys = Vec::new();
+
+            for (k, v) in tracker.iter() {
+                if v.status == "completed" {
+                    completed_keys.push(k.clone());
+                } else if v.status == "queued" || v.status == "downloading" {
+                    active.insert(k.clone(), json!({
+                        "artist": v.artist,
+                        "title": v.title,
+                        "status": v.status,
+                        "updated_at": v.updated_at
+                    }));
+                }
+            }
+
+            // Escanear recursivamente archivos descargados existentes en disco
+            let mut disk_files = Vec::new();
+            fn scan_stems(dir: &std::path::Path, list: &mut Vec<String>) {
+                if let Ok(entries) = std::fs::read_dir(dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.is_file() {
+                            let ext = path.extension().unwrap_or_default().to_string_lossy().to_lowercase();
+                            if ext == "mp3" || ext == "flac" || ext == "m4a" || ext == "ogg" || ext == "opus" {
+                                if let Some(stem) = path.file_stem() {
+                                    list.push(stem.to_string_lossy().to_string());
+                                }
+                            }
+                        } else if path.is_dir() {
+                            scan_stems(&path, list);
+                        }
+                    }
+                }
+            }
+            scan_stems(std::path::Path::new(&st.download_dir), &mut disk_files);
+
+            let res = json!({
+                "active": active,
+                "completed_keys": completed_keys,
+                "disk_files": disk_files,
+                "download_dir": st.download_dir
+            });
+
+            ("200 OK", "application/json", res.to_string())
         }
 
         ("POST", "/api/open-downloads") => {

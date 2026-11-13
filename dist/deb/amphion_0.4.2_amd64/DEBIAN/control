@@ -1,0 +1,18 @@
+Package: amphion
+Version: 0.4.2
+Section: sound
+Priority: optional
+Architecture: amd64
+Maintainer: Darwin Pinargote Franco <darwinsin@uesma.edu.ec>
+Depends: google-chrome-stable | chromium | chromium-browser
+Recommends: gstreamer1.0-plugins-base, gstreamer1.0-plugins-good
+Provides: mintplayer
+Conflicts:
+Replaces: mintplayer
+Installed-Size: 5564
+Homepage: https://github.com/darwinsin/amphion
+Description: Amphion - Reproductor Soberano de Spotify para Linux Mint Cinnamon
+ Amphion v0.4.2 integra el reproductor oficial de Spotify con aceleración por hardware
+ y DRM Widevine nativo sin cortes publicitarios ni restricciones arbitrarias.
+ Incluye gestor de extensiones (YouTube 320kbps primario, FLAC Hi-Res secundario),
+ descargas 1-click por canción y por lote en álbumes/playlists directo a ~/Descargas/Spotify/.

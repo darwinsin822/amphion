@@ -19,7 +19,7 @@ const BRIDGE_JS: &str = include_str!("bridge.js");
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🏛️ Amphion v0.4.1 — Reproductor Soberano de Spotify para Linux Mint Cinnamon");
+    println!("🏛️ Amphion v0.4.2 — Reproductor Soberano de Spotify para Linux Mint Cinnamon");
     println!("=========================================================================");
 
     let args: Vec<String> = std::env::args().collect();
@@ -46,6 +46,7 @@ async fn main() -> Result<()> {
         download_dir,
         // Pool multihilo concurrente ampliado a 6 descargas simultáneas en paralelo para máxima velocidad
         download_semaphore: Arc::new(tokio::sync::Semaphore::new(6)),
+        download_tracker: Arc::new(Mutex::new(std::collections::HashMap::new())),
     }));
 
     // Iniciar servidor web local en puerto 4567
