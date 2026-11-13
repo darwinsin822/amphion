@@ -44,7 +44,8 @@ async fn main() -> Result<()> {
         adblock_enabled: false,
         prefer_flac_flag: false,
         download_dir,
-        download_semaphore: Arc::new(tokio::sync::Semaphore::new(2)),
+        // Pool multihilo concurrente ampliado a 6 descargas simultáneas en paralelo para máxima velocidad
+        download_semaphore: Arc::new(tokio::sync::Semaphore::new(6)),
     }));
 
     // Iniciar servidor web local en puerto 4567

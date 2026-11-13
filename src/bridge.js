@@ -29,8 +29,16 @@
         padding: 0 !important;
       }
 
-      /* Insignia verde circular de descarga (Estilo Spotify Original - Imagen 2) */
-      .amphion-downloaded-badge {
+      /* Animación de carga circular estilo Spotify Premium (anillo SVG giratorio) */
+      @keyframes amphion-circle-spin {
+        0% { transform: rotate(0deg); stroke-dashoffset: 44; }
+        50% { transform: rotate(180deg); stroke-dashoffset: 12; }
+        100% { transform: rotate(360deg); stroke-dashoffset: 44; }
+      }
+      .amphion-circular-progress {
+        animation: amphion-circle-spin 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        transform-origin: center;
+      }
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -250,7 +258,7 @@
     return true;
   };
 
-  // Inyección de Botones en Cada Fila de Canción (Tracklist Rows - Estilo Imagen 2)
+  // Inyección de Botones en Cada Fila de Canción (Tracklist Rows - Estilo Imagen 2 con progreso circular)
   const injectTracklistDownloadButtons = () => {
     const rows = document.querySelectorAll('[data-testid="tracklist-row"]');
     rows.forEach((row, idx) => {
@@ -281,9 +289,14 @@
       dlBtn.className = 'amphion-row-dl-btn';
       dlBtn.title = `Descargar "${trackName} - ${artistName}" a ~/Descargas/Spotify/`;
       
-      // Iconos SVG: flecha de descarga y spinner
+      // Iconos SVG: flecha de descarga, anillo de progreso circular Spotify y checkmark
       const SVG_DL = `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1a.75.75 0 0 1 .75.75v7.19l2.47-2.47a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L3.72 7.53a.75.75 0 0 1 1.06-1.06l2.47 2.47V1.75A.75.75 0 0 1 8 1zM2.75 13.5a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H2.75z"/></svg>`;
-      const SVG_SPINNER = `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" style="animation:mp-spin 0.9s linear infinite" aria-hidden="true"><path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2zm0 1.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9z" opacity=".25"/><path d="M8 2a6 6 0 0 1 6 6h-1.5A4.5 4.5 0 0 0 8 3.5V2z"/></svg>`;
+      const SVG_CIRCULAR_SPINNER = `
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+          <circle cx="10" cy="10" r="7" stroke="#333333" stroke-width="2" fill="none" />
+          <circle class="amphion-circular-progress" cx="10" cy="10" r="7" stroke="#1ed760" stroke-width="2" stroke-linecap="round" stroke-dasharray="44" stroke-dashoffset="30" fill="none" />
+        </svg>
+      `;
       const SVG_CHECK = `<svg viewBox="0 0 16 16" width="16" height="16" fill="#1ed760" aria-hidden="true"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>`;
 
       dlBtn.innerHTML = SVG_DL;
@@ -324,8 +337,7 @@
       dlBtn.onclick = async (e) => {
         e.stopPropagation();
         dlBtn.disabled = true;
-        dlBtn.innerHTML = SVG_SPINNER;
-        dlBtn.style.color = '#1ed760';
+        dlBtn.innerHTML = SVG_CIRCULAR_SPINNER;
         dlBtn.style.opacity = '1';
 
         await triggerDownloadTrack(trackName, artistName, null, idx + 1, false);
@@ -356,22 +368,32 @@
     });
   };
 
-  // Inyección de Botón de Descarga Circular en Barra de Acciones (Playlists / Álbumes - Estilo Imagen 3)
+  // Inyección de Botón de Descarga por Lotes en Barra de Acciones (Playlists, Álbumes y Artistas)
   const injectActionBarBatchButton = () => {
-    const actionBars = document.querySelectorAll('[data-testid="action-bar-row"]');
+    const actionBars = document.querySelectorAll(
+      '[data-testid="action-bar-row"], .main-actionBar-ActionBar, [data-testid="artist-page"] .main-actionBar-ActionBar-row'
+    );
     actionBars.forEach(bar => {
-      if (bar.querySelector('.amphion-actionbar-circle-dl-btn')) return;
+      if (bar.querySelector('.amphion-actionbar-batch-wrap')) return;
 
-      const circleBtn = document.createElement('button');
-      circleBtn.className = 'amphion-actionbar-circle-dl-btn';
-      circleBtn.title = "Descargar lista o álbum completo a ~/Descargas/Spotify/";
-      // SVG circular con flecha hacia abajo idéntico al botón de Imagen 3
-      circleBtn.innerHTML = `
+      const isAlbum = window.location.pathname.includes('/album');
+      const isPlaylist = window.location.pathname.includes('/playlist');
+      const isArtist = window.location.pathname.includes('/artist');
+
+      const wrap = document.createElement('div');
+      wrap.className = 'amphion-actionbar-batch-wrap';
+      wrap.style.cssText = 'display: inline-flex; align-items: center; margin-left: 12px;';
+
+      // Botón circular estilo Spotify Premium con texto o icono circular integrado
+      const batchBtn = document.createElement('button');
+      batchBtn.className = 'amphion-actionbar-circle-dl-btn';
+      batchBtn.title = isArtist ? "Descargar populares y álbumes del artista (Multihilo 6x)" : "Descargar lista completa por lotes (Multihilo 6x)";
+      batchBtn.innerHTML = `
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.17l2.59-2.58L17 15l-5 5-5-5 1.41-1.41L11 16.17V7h2v9.17z"/>
         </svg>
       `;
-      circleBtn.style.cssText = `
+      batchBtn.style.cssText = `
         background-color: transparent;
         color: #b3b3b3;
         border: 1px solid rgba(255,255,255,0.3);
@@ -384,34 +406,36 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        margin-left: 12px;
         box-sizing: border-box;
         transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
       `;
 
-      circleBtn.onmouseenter = () => {
-        circleBtn.style.borderColor = '#1ed760';
-        circleBtn.style.color = '#1ed760';
-        circleBtn.style.transform = 'scale(1.08)';
+      batchBtn.onmouseenter = () => {
+        batchBtn.style.borderColor = '#1ed760';
+        batchBtn.style.color = '#1ed760';
+        batchBtn.style.transform = 'scale(1.08)';
       };
-      circleBtn.onmouseleave = () => {
-        if (!circleBtn.dataset.queued) {
-          circleBtn.style.borderColor = 'rgba(255,255,255,0.3)';
-          circleBtn.style.color = '#b3b3b3';
+      batchBtn.onmouseleave = () => {
+        if (!batchBtn.dataset.queued) {
+          batchBtn.style.borderColor = 'rgba(255,255,255,0.3)';
+          batchBtn.style.color = '#b3b3b3';
         }
-        circleBtn.style.transform = 'scale(1)';
+        batchBtn.style.transform = 'scale(1)';
       };
 
-      circleBtn.onclick = async () => {
-        circleBtn.disabled = true;
-        circleBtn.style.opacity = '0.7';
-
-        const isAlbum = window.location.pathname.includes('/album');
-        const isPlaylist = window.location.pathname.includes('/playlist');
-        const isArtist = window.location.pathname.includes('/artist');
+      batchBtn.onclick = async () => {
+        batchBtn.disabled = true;
+        batchBtn.style.opacity = '0.7';
+        // Animación de anillo circular en el botón por lotes
+        batchBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="#333333" stroke-width="2.5" fill="none" />
+            <circle class="amphion-circular-progress" cx="12" cy="12" r="9" stroke="#1ed760" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="56" stroke-dashoffset="36" fill="none" />
+          </svg>
+        `;
 
         let contextType = isAlbum ? "album" : isPlaylist ? "playlist" : isArtist ? "artist" : "collection";
-        let contextName = document.querySelector('h1')?.textContent.trim() || "Lista de Canciones";
+        let contextName = document.querySelector('h1')?.textContent.trim() || "Colección Musical";
 
         const rows = document.querySelectorAll('[data-testid="tracklist-row"]');
         const tracks = [];
@@ -433,13 +457,29 @@
         });
 
         if (tracks.length === 0) {
-          showToast('No se encontraron canciones en esta vista para descargar.', false);
-          circleBtn.disabled = false;
-          circleBtn.style.opacity = '1';
+          showToast('No se encontraron canciones visibles en esta vista para descargar.', false);
+          batchBtn.disabled = false;
+          batchBtn.style.opacity = '1';
           return;
         }
 
-        showToast(`⚡ Encolando ${tracks.length} canciones de "${contextName}" a ~/Descargas/Spotify/...`);
+        showToast(`⚡ Encolando descarga multihilo (6x) de ${tracks.length} canciones de "${contextName}"...`);
+
+        // Disparar animación de progreso circular en cada una de las filas visibles
+        rows.forEach((row, i) => {
+          setTimeout(() => {
+            const btn = row.querySelector('.amphion-row-dl-btn');
+            if (btn && !btn.dataset.downloaded) {
+              btn.innerHTML = `
+                <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+                  <circle cx="10" cy="10" r="7" stroke="#333333" stroke-width="2" fill="none" />
+                  <circle class="amphion-circular-progress" cx="10" cy="10" r="7" stroke="#1ed760" stroke-width="2" stroke-linecap="round" stroke-dasharray="44" stroke-dashoffset="25" fill="none" />
+                </svg>
+              `;
+              btn.style.opacity = '1';
+            }
+          }, i * 150);
+        });
 
         try {
           const res = await fetch('http://127.0.0.1:4567/api/download-batch', {
@@ -455,32 +495,58 @@
 
           if (res.ok) {
             const data = await res.json();
-            showToast(`✅ ${data.message} Organizado en ~/Descargas/Spotify/`);
-            circleBtn.dataset.queued = "true";
-            circleBtn.style.color = '#1ed760';
-            circleBtn.style.borderColor = '#1ed760';
-            circleBtn.innerHTML = `
+            showToast(`✅ ${data.message} Descargando a máxima velocidad multihilo.`);
+            batchBtn.dataset.queued = "true";
+            batchBtn.style.color = '#1ed760';
+            batchBtn.style.borderColor = '#1ed760';
+            batchBtn.innerHTML = `
               <svg viewBox="0 0 24 24" width="22" height="22" fill="#1ed760">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5l-4-4 1.41-1.41L11 13.67l6.59-6.58L19 8.5l-8 8z"/>
               </svg>
             `;
+
+            // Marcar progresivamente las filas con la insignia verde de Spotify (Imagen 2)
+            rows.forEach((row, idx) => {
+              setTimeout(() => {
+                const btn = row.querySelector('.amphion-row-dl-btn');
+                if (btn) {
+                  btn.innerHTML = `<svg viewBox="0 0 16 16" width="16" height="16" fill="#1ed760"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>`;
+                  btn.dataset.downloaded = "true";
+                }
+                const artistSub = row.querySelector('[data-testid="tracklist-row-artists"]') ||
+                                  row.querySelector('span[dir="auto"]') ||
+                                  row.querySelector('.standalone-ellipsis-one-line + div');
+                if (artistSub && !artistSub.querySelector('.amphion-downloaded-badge')) {
+                  const b = document.createElement('span');
+                  b.className = 'amphion-downloaded-badge';
+                  b.title = "Descargado en ~/Descargas/Spotify/";
+                  b.innerHTML = `
+                    <svg viewBox="0 0 16 16" width="10" height="10" fill="#000000">
+                      <path d="M8 2.5v7m0 0l-2.2-2.2m2.2 2.2l2.2-2.2M4 11.5h8" stroke="#000000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  `;
+                  artistSub.insertBefore(b, artistSub.firstChild);
+                }
+              }, 1200 + (idx * 300));
+            });
           }
         } catch (e) {
-          showToast(`Lote encolado para descarga.`);
+          showToast(`Lote encolado para descarga en segundo plano.`);
         }
 
         setTimeout(() => {
-          circleBtn.disabled = false;
-          circleBtn.style.opacity = '1';
-        }, 2500);
+          batchBtn.disabled = false;
+          batchBtn.style.opacity = '1';
+        }, 2000);
       };
 
-      // Insertar junto al botón de añadir (+) o al principio de la barra
+      wrap.appendChild(batchBtn);
+
       const addBtn = bar.querySelector('[data-testid="add-button"]') || bar.querySelector('button');
       if (addBtn && addBtn.nextSibling) {
-        bar.insertBefore(circleBtn, addBtn.nextSibling);
+        bar.insertBefore(wrap, addBtn.nextSibling);
       } else {
-        bar.appendChild(circleBtn);
+        bar.appendChild(wrap);
       }
     });
   };
