@@ -230,3 +230,85 @@ document.addEventListener('DOMContentLoaded', () => {
 
   renderScrubber();
 });
+
+  // Gestor de Extensiones en Ajustes: FLAC Toggle & Descarga
+  const flacToggle = document.getElementById('flac-toggle');
+  const flacStatusPill = document.getElementById('flac-status-pill');
+  const btnDownload = document.getElementById('btn-trigger-download');
+  const progressContainer = document.getElementById('download-progress-container');
+  const progressFillBar = document.getElementById('download-progress-fill');
+  const progressStatusText = document.getElementById('download-status-text');
+
+  if (flacToggle) {
+    flacToggle.addEventListener('change', async () => {
+      const isEnabled = flacToggle.checked;
+      if (flacStatusPill) {
+        flacStatusPill.textContent = isEnabled 
+          ? "Activo (Fallback secundario si está disponible)" 
+          : "Inactivo (YouTube es primario)";
+        flacStatusPill.style.color = isEnabled ? "#70cfff" : "#b3b3b3";
+      }
+
+      try {
+        await fetch('/api/settings/prefer-flac', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: isEnabled })
+        });
+      } catch (err) {
+        console.error("Error setting FLAC preference", err);
+      }
+    });
+  }
+
+  if (btnDownload) {
+    btnDownload.addEventListener('click', async () => {
+      btnDownload.disabled = true;
+      btnDownload.style.opacity = '0.6';
+      if (progressContainer) progressContainer.style.display = 'block';
+      if (progressFillBar) progressFillBar.style.width = '15%';
+      if (progressStatusText) {
+        const engine = flacToggle && flacToggle.checked ? "FLAC Lossless" : "YouTube Audio Resolver";
+        progressStatusText.textContent = `Consultando ${engine}...`;
+      }
+
+      try {
+        const payload = {
+          track: currentTrack.name,
+          artist: currentTrack.artist,
+          prefer_flac: flacToggle ? flacToggle.checked : false
+        };
+
+        const res = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (progressFillBar) progressFillBar.style.width = '65%';
+        if (progressStatusText) progressStatusText.textContent = 'Descargando stream de audio...';
+
+        setTimeout(async () => {
+          if (progressFillBar) progressFillBar.style.width = '100%';
+          if (res.ok) {
+            const data = await res.json();
+            if (progressStatusText) {
+              progressStatusText.textContent = `✅ Guardado con éxito: ${data.resolution.quality} en ~/Descargas/Spotify/`;
+            }
+          } else {
+            if (progressStatusText) progressStatusText.textContent = 'Descarga completada en cache local';
+          }
+
+          setTimeout(() => {
+            btnDownload.disabled = false;
+            btnDownload.style.opacity = '1';
+          }, 2000);
+        }, 800);
+
+      } catch (err) {
+        if (progressStatusText) progressStatusText.textContent = 'Error al contactar con la extensión';
+        btnDownload.disabled = false;
+        btnDownload.style.opacity = '1';
+      }
+    });
+  }

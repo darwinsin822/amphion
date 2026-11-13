@@ -7,9 +7,10 @@ mod server;
 mod storage;
 
 use anyhow::Result;
-use cdp::{ChromeProcess, CdpSession, find_or_create_spotify_tab};
+use cdp::{find_or_create_spotify_tab, CdpSession, ChromeProcess};
+use extensions::ExtensionManager;
 use queue::QueueManager;
-use server::{AppState, run_server};
+use server::{run_server, AppState};
 use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
@@ -19,20 +20,31 @@ const BRIDGE_JS: &str = include_str!("bridge.js");
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🎵 MintPlayer v0.1.0 — Spotify para Linux Mint Cinnamon");
-    println!("========================================================");
+    println!("🎵 MintPlayer v0.2.0 — Web App Wrapper de Spotify para Linux Mint Cinnamon");
+    println!("=========================================================================");
 
     let args: Vec<String> = std::env::args().collect();
     let is_login_mode = args.iter().any(|a| a == "--login" || a == "-l");
     let is_daemon = args.iter().any(|a| a == "--daemon" || a == "-d");
 
     let queue = Arc::new(Mutex::new(QueueManager::new()));
+    let mut ext_mgr = ExtensionManager::new();
+    let _ = ext_mgr.load_all();
+    let extensions = Arc::new(Mutex::new(ext_mgr));
+
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    let download_dir = format!("{}/Descargas/Spotify", home);
+    let _ = std::fs::create_dir_all(&download_dir);
+
     let app_state = Arc::new(Mutex::new(AppState {
         api: None,
         cdp: None,
         queue: Arc::clone(&queue),
+        extensions: Arc::clone(&extensions),
         is_playing: false,
         adblock_enabled: false,
+        prefer_flac_flag: false,
+        download_dir,
     }));
 
     // Iniciar servidor web local en puerto 4567
@@ -95,7 +107,6 @@ async fn main() -> Result<()> {
     }
 
     println!("🎶 MintPlayer activo. Presiona Ctrl+C para salir.");
-    // Mantener proceso vivo
     tokio::signal::ctrl_c().await?;
     println!("\nCerrando MintPlayer...");
 

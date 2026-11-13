@@ -1,5 +1,6 @@
 use crate::api::{SpotifyApi, TrackItem};
 use crate::cdp::CdpSession;
+use crate::extensions::ExtensionManager;
 use crate::queue::QueueManager;
 use anyhow::Result;
 use serde_json::json;
@@ -17,8 +18,11 @@ pub struct AppState {
     pub api: Option<SpotifyApi>,
     pub cdp: Option<Arc<CdpSession>>,
     pub queue: Arc<Mutex<QueueManager>>,
+    pub extensions: Arc<Mutex<ExtensionManager>>,
     pub is_playing: bool,
     pub adblock_enabled: bool,
+    pub prefer_flac_flag: bool,
+    pub download_dir: String,
 }
 
 pub async fn run_server(port: u16, state: Arc<Mutex<AppState>>) -> Result<()> {
@@ -28,7 +32,7 @@ pub async fn run_server(port: u16, state: Arc<Mutex<AppState>>) -> Result<()> {
     while let Ok((mut socket, _)) = listener.accept().await {
         let state_clone = Arc::clone(&state);
         tokio::spawn(async move {
-            let mut buf = [0u8; 4096];
+            let mut buf = [0u8; 8192];
             if let Ok(n) = socket.read(&mut buf).await {
                 if n == 0 { return; }
                 let req_str = String::from_utf8_lossy(&buf[..n]);
@@ -75,13 +79,62 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
                 "current_track": current,
                 "queue": q_state,
                 "adblock": st.adblock_enabled,
+                "prefer_flac": st.prefer_flac_flag,
+                "download_dir": st.download_dir,
                 "user": {
-                    "display_name": "Usuario Spotify",
-                    "product": "Free"
+                    "display_name": "Darwin Pinargote Franco",
+                    "product": "Free (Bypass CDP Activo)"
                 }
             });
 
             ("200 OK", "application/json", res.to_string())
+        }
+
+        ("GET", "/api/extensions") => {
+            let st = state.lock().await;
+            let ext_mgr = st.extensions.lock().await;
+            let list = ext_mgr.list_extensions();
+            ("200 OK", "application/json", serde_json::to_string(&list).unwrap_or_default())
+        }
+
+        ("POST", "/api/settings/prefer-flac") => {
+            let body = extract_body(req);
+            let mut st = state.lock().await;
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
+                if let Some(enabled) = v.get("enabled").and_then(|e| e.as_bool()) {
+                    st.prefer_flac_flag = enabled;
+                }
+            }
+            ("200 OK", "application/json", json!({ "prefer_flac": st.prefer_flac_flag }).to_string())
+        }
+
+        ("POST", "/api/download") => {
+            let body = extract_body(req);
+            let st = state.lock().await;
+            let ext_mgr = st.extensions.lock().await;
+
+            let (track_name, artist, prefer_flac) = if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
+                let t = v.get("track").and_then(|x| x.as_str()).unwrap_or("Zapateando Juyayay");
+                let a = v.get("artist").and_then(|x| x.as_str()).unwrap_or("Jayac");
+                let flac = v.get("prefer_flac").and_then(|x| x.as_bool()).unwrap_or(st.prefer_flac_flag);
+                (t.to_string(), a.to_string(), flac)
+            } else {
+                ("Zapateando Juyayay".to_string(), "Jayac".to_string(), st.prefer_flac_flag)
+            };
+
+            let download_meta = ext_mgr.resolve_download(&track_name, &artist, prefer_flac);
+            let dest_dir = &st.download_dir;
+
+            let result = json!({
+                "status": "success",
+                "message": format!("Descarga iniciada hacia {}", dest_dir),
+                "resolution": download_meta,
+                "track": track_name,
+                "artist": artist,
+                "target_path": format!("{}/{} - {}.{}", dest_dir, track_name, artist, download_meta["format"].as_str().unwrap_or("m4a"))
+            });
+
+            ("200 OK", "application/json", result.to_string())
         }
 
         ("POST", "/api/toggle-play") => {
@@ -146,7 +199,6 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
                 }
             }
 
-            // Datos de demostración estructurados si la API aún no está conectada
             let mock_tracks = vec![
                 TrackItem {
                     id: "mock1".to_string(),

@@ -1,9 +1,11 @@
 {
   "id": "youtube-resolver",
   "name": "YouTube Audio Resolver & Downloader",
-  "version": "1.0.0",
-  "description": "Busca y resuelve fuentes de audio alternativas en YouTube para descargas offline en MintPlayer.",
+  "version": "1.1.0",
+  "description": "Proveedor principal de búsqueda y descarga directa de audio mediante streams de alta calidad de YouTube.",
   "author": "MintPlayer Community",
+  "priority": "primary",
+  "enabled": true,
   "permissions": [
     "network:https://www.youtube.com",
     "audio:resolve",
