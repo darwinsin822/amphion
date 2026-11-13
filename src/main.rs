@@ -19,7 +19,7 @@ const BRIDGE_JS: &str = include_str!("bridge.js");
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🎵 MintPlayer v0.3.0 — Web App Wrapper de Spotify para Linux Mint Cinnamon");
+    println!("🏛️ Amphion v0.4.0 — Reproductor Soberano de Spotify para Linux Mint Cinnamon");
     println!("=========================================================================");
 
     let args: Vec<String> = std::env::args().collect();
@@ -66,7 +66,7 @@ async fn main() -> Result<()> {
     println!("✅ Enlazado por CDP: {}", ws_url);
 
     let session = CdpSession::connect(&ws_url).await?;
-    println!("💉 [3/3] Inyectando puente Web Player y Gestor de Extensiones MintPlayer...");
+    println!("💉 [3/3] Inyectando puente Web Player y Gestor de Extensiones Amphion...");
     session.evaluate(BRIDGE_JS, false).await?;
 
     {
@@ -78,7 +78,7 @@ async fn main() -> Result<()> {
     for _i in 1..=5 {
         tokio::time::sleep(Duration::from_millis(800)).await;
         let token_eval = session.evaluate(
-            "window.MintPlayer && window.MintPlayer.getToken ? window.MintPlayer.getToken() : null",
+            "(window.Amphion || window.MintPlayer) && (window.Amphion || window.MintPlayer).getToken ? (window.Amphion || window.MintPlayer).getToken() : null",
             true
         ).await;
 
@@ -100,9 +100,9 @@ async fn main() -> Result<()> {
     println!("🌐 Servicio auxiliar de descargas activo en: http://127.0.0.1:4567");
 
 
-    println!("🎶 MintPlayer activo. Presiona Ctrl+C para salir.");
+    println!("🎶 Amphion activo. Presiona Ctrl+C para salir.");
     tokio::signal::ctrl_c().await?;
-    println!("\nCerrando MintPlayer...");
+    println!("\nCerrando Amphion...");
 
     Ok(())
 }

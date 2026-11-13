@@ -1,8 +1,8 @@
-// MintPlayer Bridge v0.3.1 - Spotify Web Player Controller, Extension Manager & Universal Downloader
+// Amphion Bridge v0.4.0 - Spotify Web Player Controller, Extension Manager & Universal Downloader
 // Diseñado para Linux Mint Cinnamon con arquitectura desacoplada vía CDP
 
 (() => {
-  if (window.MintPlayer && window.MintPlayer.ready) {
+  if ((window.Amphion && window.Amphion.ready) || (window.MintPlayer && window.MintPlayer.ready)) {
     return;
   }
 
@@ -643,7 +643,7 @@
             </svg>
             <div>
               <h2 style="margin: 0; font-size: 18px; font-weight: 700;">Extensiones & Descargas Rápidas</h2>
-              <div style="font-size: 12px; color: #a7a7a7;">MintPlayer v0.3.1 • Ecosistema Completo Spotify</div>
+              <div style="font-size: 12px; color: #a7a7a7;">Amphion v0.4.0 • Ecosistema Soberano Spotify</div>
             </div>
           </div>
           <button id="mp-close-x" style="background: none; border: none; color: #b3b3b3; font-size: 22px; cursor: pointer;">✕</button>
@@ -843,7 +843,7 @@
   setInterval(runDomLoop, 1000);
   runDomLoop();
 
-  window.MintPlayer = {
+  const bridgeApi = {
     ready: true,
     getServices,
     getToken: async () => {
@@ -888,6 +888,9 @@
       return s.player.skipToPrevious();
     }
   };
+
+  window.Amphion = bridgeApi;
+  window.MintPlayer = bridgeApi;
 
   post({ type: 'ready', timestamp: Date.now() });
 })();

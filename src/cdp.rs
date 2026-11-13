@@ -37,8 +37,20 @@ pub struct ChromeProcess {
 impl ChromeProcess {
     pub fn spawn(port: u16, headless: bool) -> Result<Self> {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        let user_data_dir = PathBuf::from(home).join(".config/mintplayer/chrome-profile");
-        std::fs::create_dir_all(&user_data_dir)?;
+        let amphion_dir = PathBuf::from(&home).join(".config/amphion/chrome-profile");
+        let legacy_dir = PathBuf::from(&home).join(".config/mintplayer/chrome-profile");
+        
+        let user_data_dir = if amphion_dir.exists() {
+            amphion_dir
+        } else if legacy_dir.exists() {
+            // Reutilizar o migrar perfil existente para conservar sesión activa
+            let _ = std::fs::create_dir_all(PathBuf::from(&home).join(".config/amphion"));
+            let _ = std::os::unix::fs::symlink(&legacy_dir, &amphion_dir);
+            amphion_dir
+        } else {
+            std::fs::create_dir_all(&amphion_dir)?;
+            amphion_dir
+        };
 
         let mut cmd = Command::new("google-chrome");
         cmd.arg(format!("--remote-debugging-port={}", port))

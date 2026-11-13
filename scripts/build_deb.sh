@@ -3,17 +3,18 @@ set -e
 
 VERSION=$(grep "^version" /home/darwinsin/.gemini/antigravity/scratch/mintplayer/Cargo.toml | head -1 | sed 's/.*= "\(.*\)"/\1/')
 ARCH="amd64"
-PKG_NAME="mintplayer"
+PKG_NAME="amphion"
 BUILD_DIR="dist/deb/${PKG_NAME}_${VERSION}_${ARCH}"
 OUTPUT_DEB="dist/${PKG_NAME}_${VERSION}_${ARCH}.deb"
 
-echo "📦 [1/6] Preparando estructura del paquete Debian para MintPlayer v${VERSION}..."
+echo "📦 [1/6] Preparando estructura del paquete Debian para Amphion v${VERSION}..."
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR/DEBIAN"
 mkdir -p "$BUILD_DIR/usr/bin"
 mkdir -p "$BUILD_DIR/usr/share/applications"
 mkdir -p "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps"
 mkdir -p "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps"
+mkdir -p "$BUILD_DIR/usr/share/amphion/extensions"
 mkdir -p "$BUILD_DIR/usr/share/mintplayer/extensions"
 mkdir -p "$BUILD_DIR/usr/share/doc/$PKG_NAME"
 
@@ -23,27 +24,35 @@ cargo build --release
 
 # 2. Binario optimizado
 echo "🚀 [2/6] Copiando y limpiando binario release (strip)..."
-cp target/release/mintplayer "$BUILD_DIR/usr/bin/mintplayer"
-strip --strip-all "$BUILD_DIR/usr/bin/mintplayer"
-chmod 755 "$BUILD_DIR/usr/bin/mintplayer"
+cp target/release/amphion "$BUILD_DIR/usr/bin/amphion"
+strip --strip-all "$BUILD_DIR/usr/bin/amphion"
+chmod 755 "$BUILD_DIR/usr/bin/amphion"
+ln -sf amphion "$BUILD_DIR/usr/bin/mintplayer"
 
 # 3. Copiar extensiones por defecto
 echo "🧩 Integrando extensiones oficiales (YouTube Resolver + FLAC Resolver)..."
+cp -r extensions/* "$BUILD_DIR/usr/share/amphion/extensions/"
 cp -r extensions/* "$BUILD_DIR/usr/share/mintplayer/extensions/"
 
 # 4. Entrada de escritorio y assets oficiales de Spotify
 echo "🎨 [3/6] Integrando entrada .desktop y logos oficiales de Spotify..."
-cp assets/mintplayer.desktop "$BUILD_DIR/usr/share/applications/mintplayer.desktop"
+cp assets/amphion.desktop "$BUILD_DIR/usr/share/applications/amphion.desktop"
+cp assets/amphion.desktop "$BUILD_DIR/usr/share/applications/mintplayer.desktop"
+chmod 644 "$BUILD_DIR/usr/share/applications/amphion.desktop"
 chmod 644 "$BUILD_DIR/usr/share/applications/mintplayer.desktop"
 
+cp assets/spotify-original.svg "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps/amphion.svg"
 cp assets/spotify-original.svg "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps/mintplayer.svg"
 cp assets/spotify-original.svg "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps/spotify.svg"
+chmod 644 "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps/amphion.svg"
 chmod 644 "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps/mintplayer.svg"
 chmod 644 "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps/spotify.svg"
 
 if [ -f "assets/spotify-original-512.png" ]; then
+  cp assets/spotify-original-512.png "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps/amphion.png"
   cp assets/spotify-original-512.png "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps/mintplayer.png"
   cp assets/spotify-original-512.png "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps/spotify.png"
+  chmod 644 "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps/amphion.png"
   chmod 644 "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps/mintplayer.png"
   chmod 644 "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps/spotify.png"
 fi
@@ -59,13 +68,16 @@ Architecture: $ARCH
 Maintainer: Darwin Pinargote Franco <darwinsin@uesma.edu.ec>
 Depends: google-chrome-stable | chromium | chromium-browser
 Recommends: gstreamer1.0-plugins-base, gstreamer1.0-plugins-good
+Provides: mintplayer
+Conflicts:
+Replaces: mintplayer
 Installed-Size: $(du -ks "$BUILD_DIR/usr" | cut -f1)
-Homepage: https://github.com/darwinsin/mintplayer
-Description: Web App Wrapper de Spotify para Linux Mint Cinnamon con Gestor de Extensiones
- MintPlayer v0.2.0 (Edicion Spotify & Orpheon) integra directamente el reproductor oficial
- de Spotify con aceleracion por hardware y DRM Widevine nativo sin cortes ni restricciones.
- Incluye gestor de extensiones en Ajustes para descarga de musica con YouTube como motor
- principal y FLAC como secundario, cola estricta en orden y almacenamiento offline.
+Homepage: https://github.com/darwinsin/amphion
+Description: Amphion - Reproductor Soberano de Spotify para Linux Mint Cinnamon
+ Amphion v${VERSION} integra el reproductor oficial de Spotify con aceleración por hardware
+ y DRM Widevine nativo sin cortes publicitarios ni restricciones arbitrarias.
+ Incluye gestor de extensiones (YouTube 320kbps primario, FLAC Hi-Res secundario),
+ descargas 1-click por canción y por lote en álbumes/playlists directo a ~/Descargas/Spotify/.
 EOF
 
 # Generar firmas de integridad md5 para el paquete interno
