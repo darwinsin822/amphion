@@ -19,7 +19,7 @@ const BRIDGE_JS: &str = include_str!("bridge.js");
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🏛️ Amphion v0.4.2 — Reproductor Soberano de Spotify para Linux Mint Cinnamon");
+    println!("🏛️ Amphion v0.4.3 — Reproductor Soberano de Spotify para Linux Mint Cinnamon");
     println!("=========================================================================");
 
     let args: Vec<String> = std::env::args().collect();
@@ -38,6 +38,7 @@ async fn main() -> Result<()> {
     let app_state = Arc::new(Mutex::new(AppState {
         api: None,
         cdp: None,
+        spotdown_cdp: Arc::new(Mutex::new(None)),
         queue: Arc::clone(&queue),
         extensions: Arc::clone(&extensions),
         is_playing: false,
@@ -75,6 +76,23 @@ async fn main() -> Result<()> {
         let mut st = app_state.lock().await;
         st.cdp = Some(Arc::clone(&session));
     }
+
+    // Inicializar pestaña de soporte Spotdown en segundo plano (Tecnología de descarga acelerada)
+    let spotdown_state = Arc::clone(&app_state);
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        println!("⚡ [Hybrid Engine] Conectando resolver orgánico de Spotdown en Chrome...");
+        match cdp::setup_spotdown_tab(cdp_port).await {
+            Ok(spotdown_session) => {
+                println!("✅ [Hybrid Engine] Resolver Spotdown activo y enlazado por CDP.");
+                let st = spotdown_state.lock().await;
+                *st.spotdown_cdp.lock().await = Some(spotdown_session);
+            }
+            Err(e) => {
+                println!("⚠️ [Hybrid Engine] Spotdown en espera (Fallback automático a Turbo yt-dlp): {}", e);
+            }
+        }
+    });
 
     // Comprobar token en bucle corto
     for _i in 1..=5 {

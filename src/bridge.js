@@ -320,14 +320,14 @@
     </span>
   `;
 
-  // Descarga rápida individual con actualización de estado reactiva
-  const triggerDownloadTrack = async (trackName, artistName, albumName, trackNum, preferFlac = false) => {
+  // Descarga rápida individual con actualización de estado reactiva (Híbrida Spotdown + Turbo)
+  const triggerDownloadTrack = async (trackName, artistName, albumName, trackNum, preferFlac = false, spotifyUrl = null) => {
     const key = normalizeTrackKey(artistName, trackName);
     window.AmphionState.activeTasks.set(key, 'downloading');
     updateAllTracklistRows();
     updateActionBarBatchButton();
 
-    const formatName = preferFlac ? "FLAC Hi-Res" : "YouTube 320 kbps";
+    const formatName = preferFlac ? "FLAC Hi-Res" : "Ultra Rápido MP3 (Spotdown/Turbo)";
     showToast(`⚡ Descargando: <strong>${trackName} - ${artistName}</strong> (${formatName})...`);
 
     try {
@@ -339,7 +339,8 @@
           artist: artistName,
           album: albumName,
           track_number: trackNum,
-          prefer_flac: preferFlac
+          prefer_flac: preferFlac,
+          spotify_url: spotifyUrl
         })
       });
 
@@ -379,6 +380,16 @@
       let artistName = "Varios Artistas";
       if (artistEls.length > 0) {
         artistName = Array.from(artistEls).map(a => a.textContent.trim()).join(', ');
+      }
+
+      // Extraer enlace a Spotify para aceleración CDN con Spotdown
+      const linkEl = row.querySelector('[data-testid="internal-track-link"], a[href*="/track/"]');
+      let spotifyUrl = null;
+      if (linkEl) {
+        const href = linkEl.getAttribute('href') || linkEl.href;
+        if (href) {
+          spotifyUrl = href.startsWith('http') ? href : `https://open.spotify.com${href}`;
+        }
       }
 
       const key = normalizeTrackKey(artistName, trackName);
@@ -450,7 +461,7 @@
           dlBtn.disabled = true;
           dlBtn.innerHTML = SVG_CIRCULAR_SPINNER;
           dlBtn.style.opacity = '1';
-          await triggerDownloadTrack(trackName, artistName, null, idx + 1, false);
+          await triggerDownloadTrack(trackName, artistName, null, idx + 1, false, spotifyUrl);
           dlBtn.disabled = false;
         };
 
@@ -561,7 +572,17 @@
             if (artistEls.length > 0) {
               artist = Array.from(artistEls).map(a => a.textContent.trim()).join(', ');
             }
-            tracks.push({ name, artist, track_number: i + 1 });
+
+            const linkEl = row.querySelector('[data-testid="internal-track-link"], a[href*="/track/"]');
+            let spotifyUrl = null;
+            if (linkEl) {
+              const href = linkEl.getAttribute('href') || linkEl.href;
+              if (href) {
+                spotifyUrl = href.startsWith('http') ? href : `https://open.spotify.com${href}`;
+              }
+            }
+
+            tracks.push({ name, artist, track_number: i + 1, spotify_url: spotifyUrl });
           });
 
           if (tracks.length === 0) {

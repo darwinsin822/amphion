@@ -212,3 +212,55 @@ pub async fn find_or_create_spotify_tab(port: u16) -> Result<String> {
     target.web_socket_debugger_url
         .context("Pestaña creada pero no expuso webSocketDebuggerUrl")
 }
+
+pub async fn setup_spotdown_tab(port: u16) -> Result<Arc<CdpSession>> {
+    let client = reqwest::Client::new();
+    let new_url = format!("http://127.0.0.1:{}/json/new?https://spotdown.org/es11", port);
+    let target: CdpTarget = client.put(&new_url).send().await?
+        .json().await?;
+
+    let ws = target.web_socket_debugger_url
+        .context("Pestaña Spotdown creada pero no expuso webSocketDebuggerUrl")?;
+
+    let session = CdpSession::connect(&ws).await?;
+    
+    // Inyectar script de resolución de Spotdown con manejo de Turnstile
+    let resolver_js = r#"
+        window.__spotdownResolve = async function(spotifyUrl) {
+            try {
+                let token = null;
+                for (let i = 0; i < 40; i++) {
+                    let st = sessionStorage.getItem("_st");
+                    if (st) {
+                        try {
+                            let p = JSON.parse(st);
+                            if (p && p.token) { token = p.token; break; }
+                        } catch(e) {}
+                    }
+                    await new Promise(r => setTimeout(r, 250));
+                }
+                
+                let headers = { "Content-Type": "application/json" };
+                if (token) headers["X-Session-Token"] = token;
+                
+                let res = await fetch("/apinew/download", {
+                    method: "POST",
+                    headers: headers,
+                    body: JSON.stringify({ url: spotifyUrl })
+                });
+                
+                if (!res.ok) return { success: false, error: "HTTP " + res.status };
+                let data = await res.json();
+                if (data && data.downloadUrl) {
+                    return { success: true, downloadUrl: data.downloadUrl };
+                }
+                return { success: false, error: "No downloadUrl", raw: data };
+            } catch(e) {
+                return { success: false, error: e.toString() };
+            }
+        };
+    "#;
+    let _ = session.evaluate(resolver_js, false).await;
+
+    Ok(session)
+}
