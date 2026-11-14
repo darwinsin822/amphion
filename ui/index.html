@@ -26,7 +26,6 @@
     </div>
 
     <div class="topbar-right">
-      <button class="btn-pill-premium">Explorar Premium</button>
       <button class="btn-topbar-link" title="Instalar aplicación">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2zm1 14.172l3.586-3.586 1.414 1.414L12 20l-6-6 1.414-1.414L11 16.172V4h2v12.172z"/></svg>
         <span>Instalar aplicación</span>
@@ -264,7 +263,7 @@
               <span class="ext-title-bold">YouTube Audio Resolver</span>
               <span class="ext-active-badge">Activa</span>
             </div>
-            <p class="ext-body-text">Resuelve streams de audio para descargas offline indexadas en SQLite.</p>
+            <p class="ext-body-text">Motor único de descargas: audio de YouTube convertido a MP3 320 kbps con carátula y metadatos.</p>
             <div class="ext-perm-tag">Permiso de red: <code>https://youtube.com</code>, <code>disco local</code></div>
           </div>
         </div>
@@ -272,7 +271,7 @@
 
       <!-- Vista Ajustes -->
       <div class="content-scroll-area" id="view-settings">
-        <h2 class="section-main-title" style="margin-bottom: 8px;">Configuración de MintPlayer</h2>
+        <h2 class="section-main-title" style="margin-bottom: 8px;">Configuración de Amphion</h2>
         <p style="color: #b3b3b3; font-size: 14px; margin-bottom: 24px;">Gestiona el comportamiento del reproductor web, extensiones de descarga y módulos de seguridad.</p>
 
         <!-- Sección Extensiones de Descarga (Al estilo Orpheon) -->
@@ -281,10 +280,10 @@
             <h3 style="font-size: 16px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
               <span>🧩</span> Gestor de Extensiones de Descarga
             </h3>
-            <span class="ext-priority-indicator">YouTube (Principal) + FLAC (Secundario)</span>
+            <span class="ext-priority-indicator">YouTube · MP3 320 kbps (Motor único)</span>
           </div>
           <p style="color: #a7a7a7; font-size: 13px; line-height: 1.5; margin-bottom: 16px;">
-            Al igual que en Orpheon, MintPlayer utiliza extensiones modulares para resolver streams de audio y habilitar descargas directas a tu almacenamiento local en Linux Mint.
+            Amphion descarga directamente desde YouTube en MP3 de 320 kbps —la misma calidad de Spotify Premium— con carátula y metadatos incrustados en cada archivo.
           </p>
 
           <!-- 1. Extensión Primaria: YouTube -->
@@ -300,34 +299,9 @@
               <span class="badge-priority primary">★ Principal / Prioridad 1</span>
             </div>
             <div class="ext-box-details">
-              <span class="tag-pill">Formato: M4A / MP3 320kbps</span>
+              <span class="tag-pill">Formato: MP3 320 kbps</span>
               <span class="tag-pill">Permiso: red YouTube</span>
               <span class="tag-pill">Estado: Activo por defecto</span>
-            </div>
-          </div>
-
-          <!-- 2. Extensión Secundaria: FLAC -->
-          <div class="download-ext-box secondary-ext">
-            <div class="ext-box-header">
-              <div class="ext-box-title-wrap">
-                <span class="ext-box-icon">🔷</span>
-                <div>
-                  <div class="ext-box-title">FLAC Lossless Resolver</div>
-                  <div class="ext-box-sub">Búsqueda de archivos de audio sin compresión de alta fidelidad</div>
-                </div>
-              </div>
-              <div style="display: flex; align-items: center; gap: 12px;">
-                <span class="badge-priority secondary">Prioridad 2 (Secundaria)</span>
-                <label class="toggle-switch-spotify">
-                  <input type="checkbox" id="flac-toggle">
-                  <span class="slider-round-spotify"></span>
-                </label>
-              </div>
-            </div>
-            <div class="ext-box-details">
-              <span class="tag-pill">Formato: FLAC Lossless (16-bit / 44.1kHz)</span>
-              <span class="tag-pill">Modo: Flag Alternativo de Descarga</span>
-              <span class="tag-pill" id="flac-status-pill">Inactivo (YouTube es primario)</span>
             </div>
           </div>
 
@@ -340,7 +314,7 @@
             <div class="download-action-row">
               <button class="spotify-btn-green" id="btn-trigger-download">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-                <span>Descargar canción actual con motor activo</span>
+                <span>Descargar canción actual · YouTube 320 kbps</span>
               </button>
               <div id="download-progress-container" style="display: none; flex: 1;">
                 <div class="progress-bar-bg"><div class="progress-bar-fill" id="download-progress-fill" style="width: 0%;"></div></div>

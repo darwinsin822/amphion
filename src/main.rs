@@ -4,7 +4,6 @@ mod cdp;
 mod extensions;
 mod queue;
 mod server;
-mod storage;
 
 use anyhow::Result;
 use cdp::{find_or_create_spotify_tab, CdpSession, ChromeProcess};
@@ -19,7 +18,7 @@ const BRIDGE_JS: &str = include_str!("bridge.js");
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🏛️ Amphion v0.4.3 — Reproductor Soberano de Spotify para Linux Mint Cinnamon");
+    println!("🏛️ Amphion v0.5.1 — Reproductor Soberano de Spotify para Linux Mint Cinnamon");
     println!("=========================================================================");
 
     let args: Vec<String> = std::env::args().collect();
@@ -30,6 +29,7 @@ async fn main() -> Result<()> {
     let mut ext_mgr = ExtensionManager::new();
     let _ = ext_mgr.load_all();
     let extensions = Arc::new(Mutex::new(ext_mgr));
+    let adblock = Arc::new(Mutex::new(adblock::AdBlockManager::new(None)));
 
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
     let download_dir = format!("{}/Descargas/Spotify", home);
@@ -38,16 +38,15 @@ async fn main() -> Result<()> {
     let app_state = Arc::new(Mutex::new(AppState {
         api: None,
         cdp: None,
-        spotdown_cdp: Arc::new(Mutex::new(None)),
         queue: Arc::clone(&queue),
         extensions: Arc::clone(&extensions),
         is_playing: false,
-        adblock_enabled: false,
-        prefer_flac_flag: false,
+        adblock: Arc::clone(&adblock),
         download_dir,
         // Pool multihilo concurrente ampliado a 6 descargas simultáneas en paralelo para máxima velocidad
         download_semaphore: Arc::new(tokio::sync::Semaphore::new(6)),
         download_tracker: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        disk_cache: Arc::new(Mutex::new(None)),
     }));
 
     // Iniciar servidor web local en puerto 4567
@@ -76,20 +75,26 @@ async fn main() -> Result<()> {
         let mut st = app_state.lock().await;
         st.cdp = Some(Arc::clone(&session));
     }
+    adblock.lock().await.set_cdp(Arc::clone(&session));
 
-    // Inicializar pestaña de soporte Spotdown en segundo plano (Tecnología de descarga acelerada)
-    let spotdown_state = Arc::clone(&app_state);
+    // Guardián de inyección: el Web Player es una SPA y se recarga al navegar o iniciar sesión.
+    // Sin este vigilante el puente (barra de descargas, badges verdes y botones por fila) desaparece.
+    let guard_session = Arc::clone(&session);
     tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_secs(3)).await;
-        println!("⚡ [Hybrid Engine] Conectando resolver orgánico de Spotdown en Chrome...");
-        match cdp::setup_spotdown_tab(cdp_port).await {
-            Ok(spotdown_session) => {
-                println!("✅ [Hybrid Engine] Resolver Spotdown activo y enlazado por CDP.");
-                let st = spotdown_state.lock().await;
-                *st.spotdown_cdp.lock().await = Some(spotdown_session);
-            }
-            Err(e) => {
-                println!("⚠️ [Hybrid Engine] Spotdown en espera (Fallback automático a Turbo yt-dlp): {}", e);
+        loop {
+            tokio::time::sleep(Duration::from_secs(3)).await;
+            let alive = guard_session
+                .evaluate("!!(window.Amphion && window.Amphion.ready)", true)
+                .await
+                .ok()
+                .and_then(|v| v.get("value").and_then(|x| x.as_bool()))
+                .unwrap_or(false);
+
+            if !alive {
+                match guard_session.evaluate(BRIDGE_JS, false).await {
+                    Ok(_) => println!("💉 [Guard] Puente Amphion reinyectado tras navegación/re carga."),
+                    Err(e) => println!("⚠️ [Guard] No se pudo reinyectar el puente: {}", e),
+                }
             }
         }
     });
@@ -121,7 +126,7 @@ async fn main() -> Result<()> {
     }
 
     println!("\n🖥️ Web Player oficial de Spotify cargado con éxito.");
-    println!("🧩 Gestor de Extensiones inyectado (YouTube primario, FLAC secundario).");
+    println!("🧩 Motor de descargas YouTube MP3 320 kbps inyectado (único).");
     println!("🌐 Servicio auxiliar de descargas activo en: http://127.0.0.1:4567");
 
 

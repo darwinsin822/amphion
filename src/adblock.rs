@@ -53,31 +53,19 @@ impl AdBlockManager {
         Ok(self.enabled)
     }
 
-    pub async fn handle_player_state(&self, state: &serde_json::Value) -> Result<bool> {
-        if !self.enabled {
-            return Ok(false);
-        }
+}
 
-        // Detección: si el Web Player reporta que está reproduciendo un anuncio
-        let is_ad = state.get("item")
-            .and_then(|it| it.get("type"))
-            .and_then(|t| t.as_str())
-            .map(|s| s == "ad")
-            .unwrap_or(false)
-            || state.get("currently_playing_type")
-                .and_then(|t| t.as_str())
-                .map(|s| s == "ad")
-                .unwrap_or(false);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-        if is_ad {
-            println!("⚡ Anuncio de audio detectado. Silenciando y saltando a la siguiente pista...");
-            if let Some(ref cdp) = self.cdp {
-                // Silenciar y ordenar skip
-                let _ = cdp.evaluate("window.MintPlayer && window.MintPlayer.next()", false).await;
-            }
-            return Ok(true);
-        }
-
-        Ok(false)
+    #[tokio::test]
+    async fn toggle_without_cdp_updates_state() {
+        let mut manager = AdBlockManager::new(None);
+        assert!(!manager.enabled, "Debe iniciar apagado por defecto");
+        assert!(manager.set_enabled(true).await.unwrap());
+        assert!(manager.enabled);
+        assert!(!manager.set_enabled(false).await.unwrap());
+        assert!(!manager.enabled);
     }
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-VERSION=$(grep "^version" /home/darwinsin/.gemini/antigravity/scratch/mintplayer/Cargo.toml | head -1 | sed 's/.*= "\(.*\)"/\1/')
+VERSION=$(grep "^version" "$(dirname "$0")/../Cargo.toml" | head -1 | sed 's/.*= "\(.*\)"/\1/')
 ARCH="amd64"
 PKG_NAME="amphion"
 BUILD_DIR="dist/deb/${PKG_NAME}_${VERSION}_${ARCH}"
@@ -30,7 +30,7 @@ chmod 755 "$BUILD_DIR/usr/bin/amphion"
 ln -sf amphion "$BUILD_DIR/usr/bin/mintplayer"
 
 # 3. Copiar extensiones por defecto
-echo "🧩 Integrando extensiones oficiales (YouTube Resolver + FLAC Resolver)..."
+echo "🧩 Integrando motor único de descargas (YouTube Resolver)..."
 cp -r extensions/* "$BUILD_DIR/usr/share/amphion/extensions/"
 cp -r extensions/* "$BUILD_DIR/usr/share/mintplayer/extensions/"
 
@@ -67,7 +67,7 @@ Priority: optional
 Architecture: $ARCH
 Maintainer: Darwin Pinargote Franco <darwinsin@uesma.edu.ec>
 Depends: google-chrome-stable | chromium | chromium-browser
-Recommends: gstreamer1.0-plugins-base, gstreamer1.0-plugins-good
+Recommends: gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, yt-dlp, ffmpeg
 Provides: mintplayer
 Conflicts:
 Replaces: mintplayer
@@ -76,7 +76,7 @@ Homepage: https://github.com/darwinsin/amphion
 Description: Amphion - Reproductor Soberano de Spotify para Linux Mint Cinnamon
  Amphion v${VERSION} integra el reproductor oficial de Spotify con aceleración por hardware
  y DRM Widevine nativo sin cortes publicitarios ni restricciones arbitrarias.
- Incluye gestor de extensiones (YouTube 320kbps primario, FLAC Hi-Res secundario),
+ Incluye motor único de descargas YouTube MP3 320 kbps,
  descargas 1-click por canción y por lote en álbumes/playlists directo a ~/Descargas/Spotify/.
 EOF
 
@@ -90,7 +90,7 @@ dpkg-deb --build --root-owner-group "$BUILD_DIR" "$OUTPUT_DEB"
 
 # 7. Firma Criptográfica SHA-256 e Integridad
 echo "🔐 [6/6] Firmando paquete con hash criptográfico SHA-256..."
-sha256sum "$OUTPUT_DEB" > "${OUTPUT_DEB}.sha256"
+(cd "$(dirname "$OUTPUT_DEB")" && sha256sum "$(basename "$OUTPUT_DEB")" > "$(basename "$OUTPUT_DEB").sha256")
 (cd dist && sha256sum "$(basename "$OUTPUT_DEB")" > SHA256SUMS)
 
 # Copiar a Descargas

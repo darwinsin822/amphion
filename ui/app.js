@@ -100,6 +100,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setTrack(track) {
     currentTrack = track;
+    // Expuesto para el panel de descargas (fuera de este alcance de DOMContentLoaded)
+    window.__amphionCurrentTrack = track;
     footerSong.textContent = track.name;
     footerArtist.textContent = track.artist;
     npTrackTitle.textContent = track.name;
@@ -218,7 +220,11 @@ document.addEventListener('DOMContentLoaded', () => {
               </div>
               <button class="filter-pill" style="margin-right: 12px;">+ Agregar a Cola</button>
             `;
-            row.addEventListener('click', () => setTrack(t));
+            row.addEventListener('click', () => setTrack({
+              ...t,
+              artist: (t.artists || []).map(a => a.name).join(', '),
+              album: t.album ? t.album.name : null
+            }));
             container.appendChild(row);
           });
         }
@@ -231,84 +237,118 @@ document.addEventListener('DOMContentLoaded', () => {
   renderScrubber();
 });
 
-  // Gestor de Extensiones en Ajustes: FLAC Toggle & Descarga
-  const flacToggle = document.getElementById('flac-toggle');
-  const flacStatusPill = document.getElementById('flac-status-pill');
+  // ==========================================================================
+  // Panel de Descargas — Motor único YouTube 320 kbps (calidad Premium)
+  // ==========================================================================
   const btnDownload = document.getElementById('btn-trigger-download');
   const progressContainer = document.getElementById('download-progress-container');
   const progressFillBar = document.getElementById('download-progress-fill');
   const progressStatusText = document.getElementById('download-status-text');
 
-  if (flacToggle) {
-    flacToggle.addEventListener('change', async () => {
-      const isEnabled = flacToggle.checked;
-      if (flacStatusPill) {
-        flacStatusPill.textContent = isEnabled 
-          ? "Activo (Fallback secundario si está disponible)" 
-          : "Inactivo (YouTube es primario)";
-        flacStatusPill.style.color = isEnabled ? "#70cfff" : "#b3b3b3";
+  const normalizeKey = (artist, title) => {
+    const clean = (v) => (v || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return `${clean(artist)}:${clean(title)}`;
+  };
+
+  if (btnDownload) {
+    btnDownload.addEventListener('click', async () => {
+      const track = window.__amphionCurrentTrack;
+      if (!track) return;
+
+      btnDownload.disabled = true;
+      btnDownload.style.opacity = '0.6';
+      if (progressContainer) progressContainer.style.display = 'block';
+      if (progressFillBar) {
+        progressFillBar.style.background = '#1ed760';
+        progressFillBar.style.width = '8%';
+      }
+      if (progressStatusText) {
+        progressStatusText.textContent = 'Conectando con YouTube a 320 kbps...';
       }
 
+      const key = normalizeKey(track.artist, track.name);
+
       try {
-        await fetch('/api/settings/prefer-flac', {
+        const res = await fetch('/api/download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enabled: isEnabled })
+          body: JSON.stringify({
+            track: track.name,
+            artist: track.artist,
+            album: track.album || null,
+            track_number: null
+          })
         });
+
+        if (!res.ok) {
+          if (progressStatusText) progressStatusText.textContent = 'No se pudo iniciar la descarga.';
+          return;
+        }
+
+        // Seguimiento real del progreso hasta que el archivo exista en disco.
+        for (let i = 0; i < 240; i++) {
+          await new Promise(r => setTimeout(r, 1000));
+          const stateRes = await fetch('/api/downloads/state');
+          if (!stateRes.ok) continue;
+          const state = await stateRes.json();
+
+          if ((state.completed_keys || []).includes(key)) {
+            if (progressFillBar) progressFillBar.style.width = '100%';
+            if (progressStatusText) {
+              progressStatusText.textContent = `✅ Descargada en ~/Descargas/Spotify/ · ${track.name}`;
+            }
+            break;
+          }
+
+          if (state.failed && state.failed[key]) {
+            if (progressFillBar) {
+              progressFillBar.style.width = '100%';
+              progressFillBar.style.background = '#ff5555';
+            }
+            if (progressStatusText) {
+              progressStatusText.textContent = `⚠️ ${state.failed[key].error}`;
+            }
+            break;
+          }
+
+          const active = state.active && state.active[key];
+          const pct = active && typeof active.progress === 'number' ? Math.round(active.progress) : 0;
+          if (progressFillBar) progressFillBar.style.width = `${Math.max(8, pct)}%`;
+          if (progressStatusText) {
+            progressStatusText.textContent = pct > 0
+              ? `Descargando y convirtiendo a MP3 320 kbps… ${pct}%`
+              : 'Extrayendo audio de YouTube...';
+          }
+        }
       } catch (err) {
-        console.error("Error setting FLAC preference", err);
+        if (progressStatusText) progressStatusText.textContent = 'Sin conexión con el motor de descargas.';
+      } finally {
+        btnDownload.disabled = false;
+        btnDownload.style.opacity = '1';
       }
     });
   }
 
-  if (btnDownload) {
-    btnDownload.addEventListener('click', async () => {
-      btnDownload.disabled = true;
-      btnDownload.style.opacity = '0.6';
-      if (progressContainer) progressContainer.style.display = 'block';
-      if (progressFillBar) progressFillBar.style.width = '15%';
-      if (progressStatusText) {
-        const engine = flacToggle && flacToggle.checked ? "FLAC Lossless" : "YouTube Audio Resolver";
-        progressStatusText.textContent = `Consultando ${engine}...`;
-      }
-
+  // ==========================================================================
+  // Bloqueo de anuncios por CDP (apagado por defecto)
+  // ==========================================================================
+  const adblockToggle = document.getElementById('adblock-toggle');
+  if (adblockToggle) {
+    adblockToggle.addEventListener('change', async () => {
       try {
-        const payload = {
-          track: currentTrack.name,
-          artist: currentTrack.artist,
-          prefer_flac: flacToggle ? flacToggle.checked : false
-        };
-
-        const res = await fetch('/api/download', {
+        await fetch('/api/settings/adblock', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({ enabled: adblockToggle.checked })
         });
-
-        if (progressFillBar) progressFillBar.style.width = '65%';
-        if (progressStatusText) progressStatusText.textContent = 'Descargando stream de audio...';
-
-        setTimeout(async () => {
-          if (progressFillBar) progressFillBar.style.width = '100%';
-          if (res.ok) {
-            const data = await res.json();
-            if (progressStatusText) {
-              progressStatusText.textContent = `✅ Guardado con éxito: ${data.resolution.quality} en ~/Descargas/Spotify/`;
-            }
-          } else {
-            if (progressStatusText) progressStatusText.textContent = 'Descarga completada en cache local';
-          }
-
-          setTimeout(() => {
-            btnDownload.disabled = false;
-            btnDownload.style.opacity = '1';
-          }, 2000);
-        }, 800);
-
       } catch (err) {
-        if (progressStatusText) progressStatusText.textContent = 'Error al contactar con la extensión';
-        btnDownload.disabled = false;
-        btnDownload.style.opacity = '1';
+        adblockToggle.checked = !adblockToggle.checked;
+        console.error('No se pudo cambiar el módulo de anuncios', err);
       }
     });
   }

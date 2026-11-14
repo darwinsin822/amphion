@@ -1,26 +1,17 @@
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use tokio::sync::{broadcast, oneshot, Mutex};
+use tokio::sync::{oneshot, Mutex};
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpotifyToken {
-    pub access_token: String,
-    pub expires_at_ms: f64,
-    pub client_id: String,
-    pub is_anonymous: bool,
-}
 
 #[derive(Debug, Deserialize)]
 struct CdpTarget {
-    id: String,
     #[serde(rename = "type")]
     target_type: String,
     url: String,
@@ -30,8 +21,6 @@ struct CdpTarget {
 
 pub struct ChromeProcess {
     child: Child,
-    pub port: u16,
-    pub user_data_dir: PathBuf,
 }
 
 impl ChromeProcess {
@@ -73,11 +62,7 @@ impl ChromeProcess {
         }
 
         let child = cmd.spawn().context("Error al iniciar Google Chrome")?;
-        Ok(Self {
-            child,
-            port,
-            user_data_dir,
-        })
+        Ok(Self { child })
     }
 }
 
@@ -91,7 +76,6 @@ pub struct CdpSession {
     next_id: AtomicU64,
     pending: Arc<Mutex<HashMap<u64, oneshot::Sender<Value>>>>,
     tx_ws: Arc<Mutex<futures_util::stream::SplitSink<tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>, Message>>>,
-    pub binding_rx: broadcast::Receiver<Value>,
 }
 
 impl CdpSession {
@@ -101,7 +85,6 @@ impl CdpSession {
 
         let (tx, mut rx) = ws_stream.split();
         let pending: Arc<Mutex<HashMap<u64, oneshot::Sender<Value>>>> = Arc::new(Mutex::new(HashMap::new()));
-        let (binding_tx, binding_rx) = broadcast::channel(128);
 
         let pending_clone = Arc::clone(&pending);
         tokio::spawn(async move {
@@ -113,12 +96,6 @@ impl CdpSession {
                             if let Some(sender) = map.remove(&id) {
                                 let _ = sender.send(val);
                             }
-                        } else if let Some(method) = val.get("method").and_then(|m| m.as_str()) {
-                            if method == "Runtime.bindingCalled" {
-                                if let Some(params) = val.get("params") {
-                                    let _ = binding_tx.send(params.clone());
-                                }
-                            }
                         }
                     }
                 }
@@ -129,7 +106,6 @@ impl CdpSession {
             next_id: AtomicU64::new(1),
             pending,
             tx_ws: Arc::new(Mutex::new(tx)),
-            binding_rx,
         });
 
         // Inicializar dominios esenciales
@@ -211,56 +187,4 @@ pub async fn find_or_create_spotify_tab(port: u16) -> Result<String> {
 
     target.web_socket_debugger_url
         .context("Pestaña creada pero no expuso webSocketDebuggerUrl")
-}
-
-pub async fn setup_spotdown_tab(port: u16) -> Result<Arc<CdpSession>> {
-    let client = reqwest::Client::new();
-    let new_url = format!("http://127.0.0.1:{}/json/new?https://spotdown.org/es11", port);
-    let target: CdpTarget = client.put(&new_url).send().await?
-        .json().await?;
-
-    let ws = target.web_socket_debugger_url
-        .context("Pestaña Spotdown creada pero no expuso webSocketDebuggerUrl")?;
-
-    let session = CdpSession::connect(&ws).await?;
-    
-    // Inyectar script de resolución de Spotdown con manejo de Turnstile
-    let resolver_js = r#"
-        window.__spotdownResolve = async function(spotifyUrl) {
-            try {
-                let token = null;
-                for (let i = 0; i < 40; i++) {
-                    let st = sessionStorage.getItem("_st");
-                    if (st) {
-                        try {
-                            let p = JSON.parse(st);
-                            if (p && p.token) { token = p.token; break; }
-                        } catch(e) {}
-                    }
-                    await new Promise(r => setTimeout(r, 250));
-                }
-                
-                let headers = { "Content-Type": "application/json" };
-                if (token) headers["X-Session-Token"] = token;
-                
-                let res = await fetch("/apinew/download", {
-                    method: "POST",
-                    headers: headers,
-                    body: JSON.stringify({ url: spotifyUrl })
-                });
-                
-                if (!res.ok) return { success: false, error: "HTTP " + res.status };
-                let data = await res.json();
-                if (data && data.downloadUrl) {
-                    return { success: true, downloadUrl: data.downloadUrl };
-                }
-                return { success: false, error: "No downloadUrl", raw: data };
-            } catch(e) {
-                return { success: false, error: e.toString() };
-            }
-        };
-    "#;
-    let _ = session.evaluate(resolver_js, false).await;
-
-    Ok(session)
 }

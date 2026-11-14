@@ -86,28 +86,6 @@ impl QueueManager {
         self.tracks.get(prev_idx).cloned()
     }
 
-    pub fn reorder(&mut self, from: usize, to: usize) -> bool {
-        if from >= self.tracks.len() || to >= self.tracks.len() {
-            return false;
-        }
-
-        let item = self.tracks.remove(from);
-        self.tracks.insert(to, item);
-
-        // Actualizar current_index si la pista activa fue movida
-        if let Some(curr) = self.current_index {
-            if curr == from {
-                self.current_index = Some(to);
-            } else if from < curr && to >= curr {
-                self.current_index = Some(curr - 1);
-            } else if from > curr && to <= curr {
-                self.current_index = Some(curr + 1);
-            }
-        }
-
-        true
-    }
-
     pub fn get_state(&self) -> QueueState {
         QueueState {
             tracks: self.tracks.clone(),
@@ -117,7 +95,6 @@ impl QueueManager {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -157,20 +134,4 @@ mod tests {
         assert!(end.is_none(), "Al final de la cola se detiene sin shuffle forzado");
     }
 
-    #[test]
-    fn test_queue_reorder() {
-        let mut q = QueueManager::new();
-        let tracks = vec![
-            dummy_track("1", "Pista 1"),
-            dummy_track("2", "Pista 2"),
-            dummy_track("3", "Pista 3"),
-        ];
-
-        q.set_queue(tracks, 0);
-        // Mover pista 2 (índice 2) a la posición 0
-        assert!(q.reorder(2, 0));
-        assert_eq!(q.tracks[0].name, "Pista 3");
-        assert_eq!(q.tracks[1].name, "Pista 1");
-        assert_eq!(q.tracks[2].name, "Pista 2");
-    }
 }

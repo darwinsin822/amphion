@@ -2,13 +2,15 @@ use crate::api::{SpotifyApi, TrackItem};
 use crate::cdp::CdpSession;
 use crate::extensions::ExtensionManager;
 use crate::queue::QueueManager;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
+use std::time::{Duration, Instant};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, Semaphore};
 
 const HTML: &str = include_str!("../ui/index.html");
@@ -23,6 +25,8 @@ pub struct TrackDownloadState {
     pub title: String,
     pub status: String, // "queued" | "downloading" | "completed" | "failed"
     pub file_path: Option<String>,
+    pub progress: f32,
+    pub error: Option<String>,
     pub updated_at: u64,
 }
 
@@ -30,10 +34,7 @@ pub struct TrackDownloadState {
 pub struct BatchTrackItem {
     pub name: String,
     pub artist: String,
-    pub album: Option<String>,
     pub track_number: Option<u32>,
-    pub duration_ms: Option<u64>,
-    pub spotify_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,22 +42,94 @@ pub struct BatchDownloadRequest {
     pub context_type: Option<String>, // "playlist", "album", "artist"
     pub context_name: Option<String>,
     pub artist_name: Option<String>,
-    pub prefer_flac: Option<bool>,
     pub tracks: Vec<BatchTrackItem>,
 }
 
 pub struct AppState {
     pub api: Option<SpotifyApi>,
     pub cdp: Option<Arc<CdpSession>>,
-    pub spotdown_cdp: Arc<Mutex<Option<Arc<CdpSession>>>>,
     pub queue: Arc<Mutex<QueueManager>>,
     pub extensions: Arc<Mutex<ExtensionManager>>,
     pub is_playing: bool,
-    pub adblock_enabled: bool,
-    pub prefer_flac_flag: bool,
+    pub adblock: Arc<Mutex<crate::adblock::AdBlockManager>>,
     pub download_dir: String,
     pub download_semaphore: Arc<Semaphore>,
     pub download_tracker: Arc<Mutex<HashMap<String, TrackDownloadState>>>,
+    pub disk_cache: DiskCache,
+}
+
+/// Cache en memoria del índice de descargas (TTL 2 s).
+pub type DiskCache = Arc<Mutex<Option<(Instant, Vec<DownloadedFile>)>>>;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DownloadedFile {
+    pub name: String,
+    pub stem: String,
+    pub path: String,
+    pub size_bytes: u64,
+    pub extension: String,
+}
+
+/// Recorre la carpeta de descargas una sola vez y devuelve metadatos de audio.
+fn scan_downloads(dir: &str) -> Vec<DownloadedFile> {
+    fn walk(path: &Path, out: &mut Vec<DownloadedFile>) {
+        let Ok(entries) = std::fs::read_dir(path) else { return };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_file() {
+                let ext = p
+                    .extension()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_lowercase();
+                if AUDIO_EXTENSIONS.contains(&ext.as_str()) {
+                    let name = p
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    let stem = p
+                        .file_stem()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    out.push(DownloadedFile {
+                        name,
+                        stem,
+                        path: p.to_string_lossy().to_string(),
+                        size_bytes: entry.metadata().map(|m| m.len()).unwrap_or(0),
+                        extension: ext,
+                    });
+                }
+            } else if p.is_dir() {
+                walk(&p, out);
+            }
+        }
+    }
+
+    let mut files = Vec::new();
+    walk(Path::new(dir), &mut files);
+    files
+}
+
+/// Cache de 2 s del índice en disco: la UI consulta el estado cada 1-4 s.
+async fn list_downloads_cached(dir: &str, cache: &DiskCache) -> Vec<DownloadedFile> {
+    {
+        let guard = cache.lock().await;
+        if let Some((at, files)) = guard.as_ref() {
+            if at.elapsed() < Duration::from_secs(2) {
+                return files.clone();
+            }
+        }
+    }
+
+    let dir_owned = dir.to_string();
+    let files = tokio::task::spawn_blocking(move || scan_downloads(&dir_owned))
+        .await
+        .unwrap_or_default();
+
+    *cache.lock().await = Some((Instant::now(), files.clone()));
+    files
 }
 
 pub async fn run_server(port: u16, state: Arc<Mutex<AppState>>) -> Result<()> {
@@ -66,11 +139,7 @@ pub async fn run_server(port: u16, state: Arc<Mutex<AppState>>) -> Result<()> {
     while let Ok((mut socket, _)) = listener.accept().await {
         let state_clone = Arc::clone(&state);
         tokio::spawn(async move {
-            let mut buf = [0u8; 16384];
-            if let Ok(n) = socket.read(&mut buf).await {
-                if n == 0 { return; }
-                let req_str = String::from_utf8_lossy(&buf[..n]);
-                
+            if let Some(req_str) = read_http_request(&mut socket).await {
                 // Extraer cabecera Origin para CORS seguro (mitigando hallazgo crítico de Nexus DeepSeek)
                 let origin = req_str.lines()
                     .find(|l| l.to_lowercase().starts_with("origin:"))
@@ -146,111 +215,117 @@ pub fn normalize_track_key(artist: &str, title: &str) -> String {
     format!("{}:{}", clean(artist), clean(title))
 }
 
-pub fn build_ytdlp_args(
-    query: &str,
-    out_tmpl: &str,
-    prefer_flac: bool,
-    fast_mode: bool,
-) -> Vec<String> {
-    let mut args = Vec::new();
-    // Prioritizar cliente Android para evitar throttling y capturar streams de audio directos
-    args.push("--extractor-args".to_string());
-    args.push("youtube:player_client=android,web".to_string());
-    args.push("--concurrent-fragments".to_string());
-    args.push("4".to_string());
-    args.push("--no-warnings".to_string());
-    args.push("--no-playlist".to_string());
-    args.push("--buffer-size".to_string());
-    args.push("64K".to_string());
+// ============================================================================
+// MOTOR DE DESCARGA — ÚNICA FUENTE: YOUTUBE (yt-dlp + FFmpeg)
+// Calidad fija MP3 320 kbps, equivalente a Spotify Premium.
+// ============================================================================
 
-    if prefer_flac {
-        args.push("-x".to_string());
-        args.push("--audio-format".to_string());
-        args.push("flac".to_string());
-    } else {
-        // Modo Ultra Rápido estilo Spotify Premium (priorizar velocidad sobre transcodificación pesada)
-        if fast_mode {
-            // Seleccionar stream de audio directo optimizado para descarga relámpago (~128-160 kbps)
-            args.push("-f".to_string());
-            args.push("ba[abr<=160]/ba[ext=m4a]/ba/b".to_string());
-            args.push("-x".to_string());
-            args.push("--audio-format".to_string());
-            args.push("mp3".to_string());
-            args.push("--audio-quality".to_string());
-            args.push("5".to_string()); // Calidad 5 (130-160kbps): codificación relámpago en CPU <1s
-            args.push("--postprocessor-args".to_string());
-            args.push("ExtractAudio:-threads 4".to_string());
-        } else {
-            args.push("-x".to_string());
-            args.push("--audio-format".to_string());
-            args.push("mp3".to_string());
-            args.push("--audio-quality".to_string());
-            args.push("0".to_string());
+const AUDIO_EXTENSIONS: [&str; 5] = ["mp3", "flac", "m4a", "ogg", "opus"];
+
+pub fn build_ytdlp_args(query: &str, out_tmpl: &str) -> Vec<String> {
+    vec![
+        // Cliente por defecto de yt-dlp: expone las pistas de audio reales
+        // (140/251). Forzar "android" degradaba a video 360p (formato 18).
+        "--concurrent-fragments".into(),
+        "4".into(),
+        "--no-warnings".into(),
+        "--no-playlist".into(),
+        "--newline".into(),
+        "--progress-template".into(),
+        "download:%(progress._percent_str)s".into(),
+        "--buffer-size".into(),
+        "1M".into(),
+        "--retries".into(),
+        "5".into(),
+        "--fragment-retries".into(),
+        "5".into(),
+        // Mejor pista de audio disponible y transcodificación a MP3 CBR 320 kbps.
+        "-f".into(),
+        "bestaudio/best".into(),
+        "-x".into(),
+        "--audio-format".into(),
+        "mp3".into(),
+        "--audio-quality".into(),
+        "320K".into(),
+        // Metadatos y carátula incrustados, como una pista descargada de Spotify.
+        "--embed-metadata".into(),
+        "--embed-thumbnail".into(),
+        "--convert-thumbnails".into(),
+        "jpg".into(),
+        "--no-mtime".into(),
+        "-o".into(),
+        out_tmpl.into(),
+        query.into(),
+    ]
+}
+
+fn find_existing_audio(dir: &str, stem: &str) -> Option<String> {
+    let entries = std::fs::read_dir(dir).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let ext = path
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_lowercase();
+        if !AUDIO_EXTENSIONS.contains(&ext.as_str()) {
+            continue;
+        }
+        if path.file_stem().map(|s| s == std::ffi::OsStr::new(stem)).unwrap_or(false) {
+            return Some(path.to_string_lossy().to_string());
         }
     }
-
-    args.push("-o".to_string());
-    args.push(out_tmpl.to_string());
-    args.push(query.to_string());
-
-    args
+    None
 }
 
-async fn download_direct_url(url: &str, out_path: &str) -> Result<()> {
-    let client = reqwest::Client::builder()
-        .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-        .timeout(std::time::Duration::from_secs(60))
-        .build()?;
-
-    let resp = client.get(url).send().await?;
-    if !resp.status().is_success() {
-        anyhow::bail!("HTTP status {}", resp.status());
-    }
-
-    let bytes = resp.bytes().await?;
-    if bytes.is_empty() {
-        anyhow::bail!("Archivo descargado vacío");
-    }
-
-    tokio::fs::write(out_path, &bytes).await?;
-    Ok(())
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }
 
-async fn try_spotdown_download(
-    spotify_url: &str,
-    target_dir: &str,
-    target_filename: &str,
-    spotdown_cdp: Option<Arc<CdpSession>>,
-) -> Result<String> {
-    let cdp = spotdown_cdp.context("Sesión Spotdown no inicializada")?;
-    let js = format!("window.__spotdownResolve ? window.__spotdownResolve('{}') : Promise.resolve({{ success: false, error: 'Resolver no inyectado' }})", spotify_url);
-    let val = cdp.evaluate(&js, true).await?;
-
-    let obj = val.get("value").unwrap_or(&val);
-    let is_success = obj.get("success").and_then(|s| s.as_bool()).unwrap_or(false);
-    if !is_success {
-        let err = obj.get("error").and_then(|e| e.as_str()).unwrap_or("Desconocido");
-        anyhow::bail!("Spotdown error: {}", err);
+async fn set_track_state(
+    tracker: &Arc<Mutex<HashMap<String, TrackDownloadState>>>,
+    key: &str,
+    status: &str,
+    progress: f32,
+    file_path: Option<String>,
+    error: Option<String>,
+) {
+    let mut trk = tracker.lock().await;
+    if let Some(entry) = trk.get_mut(key) {
+        entry.status = status.to_string();
+        entry.progress = progress;
+        entry.updated_at = now_secs();
+        if file_path.is_some() {
+            entry.file_path = file_path;
+        }
+        if error.is_some() {
+            entry.error = error;
+        }
     }
-
-    let dl_url = obj.get("downloadUrl").and_then(|u| u.as_str())
-        .context("No se obtuvo downloadUrl")?;
-
-    let out_file = format!("{}/{}.mp3", target_dir, target_filename);
-    download_direct_url(dl_url, &out_file).await?;
-    Ok(out_file)
 }
 
-fn trigger_hybrid_download(
+/// Extrae el porcentaje de una línea de progreso de yt-dlp.
+pub fn parse_progress_line(line: &str) -> Option<f32> {
+    let raw = line.trim().strip_prefix("download:").unwrap_or(line.trim()).trim();
+    let num = raw.strip_suffix('%')?.trim();
+    num.parse::<f32>().ok().map(|p| p.clamp(0.0, 100.0))
+}
+
+/// Descarga una pista desde YouTube manteniendo estado real (cola, progreso,
+/// completado o fallido) para que la interfaz Premium pinte el badge correcto.
+fn trigger_youtube_download(
     track_name: &str,
     artist: &str,
     target_dir: &str,
     target_filename: &str,
-    prefer_flac: bool,
     sem: Arc<Semaphore>,
     tracker: Arc<Mutex<HashMap<String, TrackDownloadState>>>,
-    spotify_url: Option<String>,
-    spotdown_cdp: Option<Arc<CdpSession>>,
 ) {
     let t_name = track_name.to_string();
     let a_name = artist.to_string();
@@ -259,101 +334,162 @@ fn trigger_hybrid_download(
     let key = normalize_track_key(&a_name, &t_name);
 
     tokio::spawn(async move {
-        let now_ts = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
+        // Evitar duplicar el mismo trabajo si ya está en curso.
+        {
+            let trk = tracker.lock().await;
+            if let Some(entry) = trk.get(&key) {
+                if entry.status == "queued" || entry.status == "downloading" {
+                    return;
+                }
+            }
+        }
 
-        // 1. Registrar estado Encolado
         {
             let mut trk = tracker.lock().await;
-            trk.insert(key.clone(), TrackDownloadState {
-                key: key.clone(),
-                artist: a_name.clone(),
-                title: t_name.clone(),
-                status: "queued".to_string(),
-                file_path: None,
-                updated_at: now_ts,
-            });
+            trk.insert(
+                key.clone(),
+                TrackDownloadState {
+                    key: key.clone(),
+                    artist: a_name.clone(),
+                    title: t_name.clone(),
+                    status: "queued".to_string(),
+                    file_path: None,
+                    progress: 0.0,
+                    error: None,
+                    updated_at: now_secs(),
+                },
+            );
         }
 
         let Ok(_permit) = sem.acquire().await else { return; };
 
-        // 2. Transición a estado Descargando en progreso
-        {
-            let mut trk = tracker.lock().await;
-            if let Some(entry) = trk.get_mut(&key) {
-                entry.status = "downloading".to_string();
-                entry.updated_at = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs();
-            }
+        if tokio::fs::create_dir_all(&dir).await.is_err() {
+            set_track_state(&tracker, &key, "failed", 0.0, None, Some("No se pudo crear la carpeta destino".into())).await;
+            return;
         }
 
-        let _ = tokio::fs::create_dir_all(&dir).await;
-        let mut final_saved_path = None;
-
-        // PRIORIDAD 1: Spotdown CDN directo si no es FLAC y tenemos spotify_url y CDP activo
-        if !prefer_flac {
-            if let Some(ref sp_url) = spotify_url {
-                if let Ok(path) = try_spotdown_download(sp_url, &dir, &file, spotdown_cdp).await {
-                    println!("⚡ [Spotdown CDN] Descarga instantánea completada: {} - {}", a_name, t_name);
-                    final_saved_path = Some(path);
-                }
-            }
+        // Si el archivo ya existe en disco, no se vuelve a descargar.
+        if let Some(existing) = find_existing_audio(&dir, &file) {
+            set_track_state(&tracker, &key, "completed", 100.0, Some(existing), None).await;
+            return;
         }
 
-        // PRIORIDAD 2: Motor Turbo yt-dlp con argumentos de alta velocidad (Fallback transparente)
-        if final_saved_path.is_none() {
-            let ytdlp_path = find_ytdlp_binary();
-            let query = format!("ytsearch1:{} {} audio", t_name, a_name);
-            let audio_format = if prefer_flac { "flac" } else { "mp3" };
-            let out_tmpl = format!("{}/{}.%(ext)s", dir, file);
+        set_track_state(&tracker, &key, "downloading", 0.0, None, None).await;
 
-            let args = build_ytdlp_args(&query, &out_tmpl, prefer_flac, true);
+        let ytdlp_path = find_ytdlp_binary();
+        let query = format!("ytsearch1:{} {} audio", t_name, a_name);
+        let out_tmpl = format!("{}/{}.%(ext)s", dir, file);
+        let args = build_ytdlp_args(&query, &out_tmpl);
 
-            let mut cmd = tokio::process::Command::new(ytdlp_path);
-            for arg in args {
-                cmd.arg(arg);
+        let mut cmd = tokio::process::Command::new(ytdlp_path);
+        cmd.args(&args)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+
+        let mut child = match cmd.spawn() {
+            Ok(c) => c,
+            Err(e) => {
+                set_track_state(&tracker, &key, "failed", 0.0, None, Some(format!("No se pudo ejecutar yt-dlp: {}", e))).await;
+                return;
             }
+        };
 
-            let status = cmd.status().await;
-            if status.map(|s| s.success()).unwrap_or(false) {
-                let candidate = format!("{}/{}.{}", dir, file, audio_format);
-                if std::path::Path::new(&candidate).exists() {
-                    final_saved_path = Some(candidate);
-                } else if let Ok(mut entries) = tokio::fs::read_dir(&dir).await {
-                    while let Ok(Some(entry)) = entries.next_entry().await {
-                        let p = entry.path();
-                        if let Some(stem) = p.file_stem() {
-                            if stem == std::ffi::OsStr::new(&file) {
-                                final_saved_path = Some(p.to_string_lossy().to_string());
-                                break;
-                            }
+        // Progreso real leído del stdout de yt-dlp.
+        let stdout = child.stdout.take();
+        let progress_tracker = Arc::clone(&tracker);
+        let progress_key = key.clone();
+        let progress_task = tokio::spawn(async move {
+            if let Some(out) = stdout {
+                let mut lines = BufReader::new(out).lines();
+                while let Ok(Some(line)) = lines.next_line().await {
+                    // yt-dlp puede emitir "download: 42.3%" o simplemente " 42.3%".
+                    if let Some(pct) = parse_progress_line(&line) {
+                        let mut trk = progress_tracker.lock().await;
+                        if let Some(entry) = trk.get_mut(&progress_key) {
+                            entry.progress = pct.clamp(0.0, 99.0);
+                            entry.updated_at = now_secs();
                         }
                     }
                 }
             }
+        });
+
+        // stderr se drena para evitar bloqueos y conservar el último error.
+        let stderr = child.stderr.take();
+        let stderr_task = tokio::spawn(async move {
+            let mut last = String::new();
+            if let Some(err) = stderr {
+                let mut lines = BufReader::new(err).lines();
+                while let Ok(Some(line)) = lines.next_line().await {
+                    let l = line.trim();
+                    if !l.is_empty() {
+                        last = l.chars().take(300).collect();
+                    }
+                }
+            }
+            last
+        });
+
+        let status = child.wait().await;
+        let _ = progress_task.await;
+        let err_detail = stderr_task.await.unwrap_or_default();
+        let success = status.map(|s| s.success()).unwrap_or(false);
+
+        let mut saved = None;
+        if success {
+            saved = find_existing_audio(&dir, &file);
         }
 
-        // 3. Registrar estado Completado (visto) o Fallido
-        {
-            let mut trk = tracker.lock().await;
-            if let Some(entry) = trk.get_mut(&key) {
-                if let Some(p) = final_saved_path {
-                    entry.status = "completed".to_string();
-                    entry.file_path = Some(p);
+        match saved {
+            Some(path) => {
+                println!("✅ [YouTube 320k] {} - {} → {}", a_name, t_name, path);
+                set_track_state(&tracker, &key, "completed", 100.0, Some(path), None).await;
+            }
+            None => {
+                let msg = if err_detail.is_empty() {
+                    "yt-dlp no generó el archivo de audio".to_string()
                 } else {
-                    entry.status = "failed".to_string();
-                }
-                entry.updated_at = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs();
+                    err_detail
+                };
+                println!("❌ [YouTube 320k] {} - {}: {}", a_name, t_name, msg);
+                set_track_state(&tracker, &key, "failed", 0.0, None, Some(msg)).await;
             }
         }
     });
+}
+
+/// Lee la petición completa respetando Content-Length. Necesario para lotes
+/// grandes de canciones (una sola lectura de 16 KB truncaba el JSON).
+async fn read_http_request(socket: &mut TcpStream) -> Option<String> {
+    let mut data: Vec<u8> = Vec::new();
+    let mut buf = [0u8; 8192];
+    loop {
+        let n = socket.read(&mut buf).await.ok()?;
+        if n == 0 {
+            break;
+        }
+        data.extend_from_slice(&buf[..n]);
+        if data.len() > 8 * 1024 * 1024 {
+            break;
+        }
+        if let Some(pos) = data.windows(4).position(|w| w == b"\r\n\r\n") {
+            let header_end = pos + 4;
+            let headers = String::from_utf8_lossy(&data[..header_end]).to_lowercase();
+            let content_length = headers
+                .lines()
+                .find_map(|l| l.strip_prefix("content-length:").map(|v| v.trim()))
+                .and_then(|v| v.parse::<usize>().ok())
+                .unwrap_or(0);
+            if data.len() >= header_end + content_length {
+                break;
+            }
+        }
+    }
+    if data.is_empty() {
+        None
+    } else {
+        Some(String::from_utf8_lossy(&data).to_string())
+    }
 }
 
 async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str, &'static str, String) {
@@ -388,8 +524,7 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
                 "is_playing": st.is_playing,
                 "current_track": current,
                 "queue": q_state,
-                "adblock": st.adblock_enabled,
-                "prefer_flac": st.prefer_flac_flag,
+                "adblock": st.adblock.lock().await.enabled,
                 "download_dir": st.download_dir,
                 "user": {
                     "display_name": "Darwin Pinargote Franco",
@@ -400,6 +535,21 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
             ("200 OK", "application/json", res.to_string())
         }
 
+        ("POST", "/api/settings/adblock") => {
+            let body = extract_body(req);
+            let st = state.lock().await;
+            let enabled = serde_json::from_str::<serde_json::Value>(&body)
+                .ok()
+                .and_then(|v| v.get("enabled").and_then(|e| e.as_bool()))
+                .unwrap_or(false);
+
+            let mut manager = st.adblock.lock().await;
+            match manager.set_enabled(enabled).await {
+                Ok(value) => ("200 OK", "application/json", json!({ "adblock": value }).to_string()),
+                Err(e) => ("500 Internal Server Error", "application/json", json!({ "error": e.to_string() }).to_string()),
+            }
+        }
+
         ("GET", "/api/extensions") => {
             let st = state.lock().await;
             let ext_mgr = st.extensions.lock().await;
@@ -407,39 +557,25 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
             ("200 OK", "application/json", serde_json::to_string(&list).unwrap_or_default())
         }
 
-        ("POST", "/api/settings/prefer-flac") => {
-            let body = extract_body(req);
-            let mut st = state.lock().await;
-            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
-                if let Some(enabled) = v.get("enabled").and_then(|e| e.as_bool()) {
-                    st.prefer_flac_flag = enabled;
-                }
-            }
-            ("200 OK", "application/json", json!({ "prefer_flac": st.prefer_flac_flag }).to_string())
-        }
-
         ("POST", "/api/download") => {
             let body = extract_body(req);
             let st = state.lock().await;
             let ext_mgr = st.extensions.lock().await;
 
-            let (track_name, artist, album, track_num, prefer_flac, sp_url) = if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
-                let t = v.get("track").and_then(|x| x.as_str()).unwrap_or("Zapateando Juyayay");
-                let a = v.get("artist").and_then(|x| x.as_str()).unwrap_or("Jayac");
-                let alb = v.get("album").and_then(|x| x.as_str()).map(|s| s.to_string());
+            let (track_name, artist, album, track_num) = if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
+                let t = v.get("track").and_then(|x| x.as_str()).unwrap_or("Canción desconocida");
+                let a = v.get("artist").and_then(|x| x.as_str()).unwrap_or("Artista desconocido");
+                let alb = v.get("album").and_then(|x| x.as_str()).filter(|s| !s.is_empty()).map(|s| s.to_string());
                 let num = v.get("track_number").and_then(|x| x.as_u64()).map(|n| n as u32);
-                let flac = v.get("prefer_flac").and_then(|x| x.as_bool()).unwrap_or(st.prefer_flac_flag);
-                let url = v.get("spotify_url").and_then(|x| x.as_str()).map(|s| s.to_string());
-                (t.to_string(), a.to_string(), alb, num, flac, url)
+                (t.to_string(), a.to_string(), alb, num)
             } else {
-                ("Zapateando Juyayay".to_string(), "Jayac".to_string(), None, None, st.prefer_flac_flag, None)
+                ("Canción desconocida".to_string(), "Artista desconocido".to_string(), None, None)
             };
 
-            let download_meta = ext_mgr.resolve_download(&track_name, &artist, prefer_flac);
+            let download_meta = ext_mgr.resolve_download(&track_name, &artist);
             let base_dir = st.download_dir.clone();
             let sem = Arc::clone(&st.download_semaphore);
             let tracker = Arc::clone(&st.download_tracker);
-            let spotdown_cdp = st.spotdown_cdp.lock().await.clone();
 
             let (target_dir, filename) = match (&album, track_num) {
                 (Some(alb), Some(num)) => (
@@ -456,11 +592,11 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
                 )
             };
 
-            trigger_hybrid_download(&track_name, &artist, &target_dir, &filename, prefer_flac, sem, tracker, sp_url, spotdown_cdp);
+            trigger_youtube_download(&track_name, &artist, &target_dir, &filename, sem, tracker);
 
             let result = json!({
-                "status": "success",
-                "message": format!("Descarga híbrida iniciada hacia {}", target_dir),
+                "status": "queued",
+                "message": format!("Descarga YouTube 320 kbps iniciada hacia {}", target_dir),
                 "resolution": download_meta,
                 "track": track_name,
                 "artist": artist,
@@ -479,9 +615,6 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
                 let base_dir = st.download_dir.clone();
                 let sem = Arc::clone(&st.download_semaphore);
                 let tracker = Arc::clone(&st.download_tracker);
-                let spotdown_cdp = st.spotdown_cdp.lock().await.clone();
-                let prefer_flac = batch.prefer_flac.unwrap_or(st.prefer_flac_flag);
-                let count = batch.tracks.len();
 
                 let sub_folder = match (batch.context_type.as_deref(), &batch.context_name, &batch.artist_name) {
                     (Some("playlist"), Some(cname), _) => format!("{}/Playlists/{}", base_dir, sanitize(cname)),
@@ -490,32 +623,32 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
                     _ => format!("{}/Lotes", base_dir),
                 };
 
+                // Deduplicar por artista+título dentro del mismo lote.
+                let mut seen = std::collections::HashSet::new();
+                let mut queued = 0usize;
                 for (idx, t) in batch.tracks.into_iter().enumerate() {
-                    let sem_clone = Arc::clone(&sem);
-                    let tracker_clone = Arc::clone(&tracker);
-                    let folder_clone = sub_folder.clone();
-                    let spotdown_clone = spotdown_cdp.clone();
+                    let key = normalize_track_key(&t.artist, &t.name);
+                    if !seen.insert(key) {
+                        continue;
+                    }
                     let t_num = t.track_number.unwrap_or((idx + 1) as u32);
                     let file_name = format!("{:02} - {} - {}", t_num, sanitize(&t.artist), sanitize(&t.name));
-
-                    trigger_hybrid_download(
+                    trigger_youtube_download(
                         &t.name,
                         &t.artist,
-                        &folder_clone,
+                        &sub_folder,
                         &file_name,
-                        prefer_flac,
-                        sem_clone,
-                        tracker_clone,
-                        t.spotify_url,
-                        spotdown_clone
+                        Arc::clone(&sem),
+                        Arc::clone(&tracker),
                     );
+                    queued += 1;
                 }
 
                 let res = json!({
                     "status": "queued",
-                    "queued_tracks": count,
+                    "queued_tracks": queued,
                     "target_dir": sub_folder,
-                    "message": format!("Se encolaron {} pistas para descarga híbrida rápida.", count)
+                    "message": format!("Se encolaron {} pistas para descarga YouTube 320 kbps.", queued)
                 });
 
                 return ("200 OK", "application/json", res.to_string());
@@ -525,51 +658,52 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
         }
 
         ("GET", "/api/downloads/state") => {
+            let (download_dir, cache) = {
+                let st = state.lock().await;
+                (st.download_dir.clone(), Arc::clone(&st.disk_cache))
+            };
+
+            let files = list_downloads_cached(&download_dir, &cache).await;
+
             let st = state.lock().await;
             let tracker = st.download_tracker.lock().await;
 
             let mut active = serde_json::Map::new();
             let mut completed_keys = Vec::new();
+            let mut failed = serde_json::Map::new();
 
             for (k, v) in tracker.iter() {
-                if v.status == "completed" {
-                    completed_keys.push(k.clone());
-                } else if v.status == "queued" || v.status == "downloading" {
-                    active.insert(k.clone(), json!({
-                        "artist": v.artist,
-                        "title": v.title,
-                        "status": v.status,
-                        "updated_at": v.updated_at
-                    }));
+                match v.status.as_str() {
+                    "completed" => completed_keys.push(k.clone()),
+                    "failed" => {
+                        failed.insert(k.clone(), json!({
+                            "artist": v.artist,
+                            "title": v.title,
+                            "error": v.error.clone().unwrap_or_else(|| "Error desconocido".to_string()),
+                            "updated_at": v.updated_at
+                        }));
+                    }
+                    "queued" | "downloading" => {
+                        active.insert(k.clone(), json!({
+                            "artist": v.artist,
+                            "title": v.title,
+                            "status": v.status,
+                            "progress": v.progress,
+                            "updated_at": v.updated_at
+                        }));
+                    }
+                    _ => {}
                 }
             }
 
-            // Escanear recursivamente archivos descargados existentes en disco
-            let mut disk_files = Vec::new();
-            fn scan_stems(dir: &std::path::Path, list: &mut Vec<String>) {
-                if let Ok(entries) = std::fs::read_dir(dir) {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        if path.is_file() {
-                            let ext = path.extension().unwrap_or_default().to_string_lossy().to_lowercase();
-                            if ext == "mp3" || ext == "flac" || ext == "m4a" || ext == "ogg" || ext == "opus" {
-                                if let Some(stem) = path.file_stem() {
-                                    list.push(stem.to_string_lossy().to_string());
-                                }
-                            }
-                        } else if path.is_dir() {
-                            scan_stems(&path, list);
-                        }
-                    }
-                }
-            }
-            scan_stems(std::path::Path::new(&st.download_dir), &mut disk_files);
+            let disk_files: Vec<String> = files.iter().map(|f| f.stem.clone()).collect();
 
             let res = json!({
                 "active": active,
                 "completed_keys": completed_keys,
+                "failed": failed,
                 "disk_files": disk_files,
-                "download_dir": st.download_dir
+                "download_dir": download_dir
             });
 
             ("200 OK", "application/json", res.to_string())
@@ -584,32 +718,12 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
         }
 
         ("GET", "/api/downloads/history") => {
-            let st = state.lock().await;
-            let mut files = Vec::new();
-            
-            // Recorrer recursivamente la carpeta de descargas
-            fn scan_dir(dir: &std::path::Path, list: &mut Vec<serde_json::Value>) {
-                if let Ok(entries) = std::fs::read_dir(dir) {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        if path.is_file() {
-                            let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                            let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
-                            let ext = path.extension().unwrap_or_default().to_string_lossy().to_string();
-                            list.push(json!({
-                                "name": name,
-                                "path": path.to_string_lossy(),
-                                "size_bytes": size,
-                                "extension": ext
-                            }));
-                        } else if path.is_dir() {
-                            scan_dir(&path, list);
-                        }
-                    }
-                }
-            }
+            let (download_dir, cache) = {
+                let st = state.lock().await;
+                (st.download_dir.clone(), Arc::clone(&st.disk_cache))
+            };
 
-            scan_dir(std::path::Path::new(&st.download_dir), &mut files);
+            let files = list_downloads_cached(&download_dir, &cache).await;
             ("200 OK", "application/json", serde_json::to_string(&files).unwrap_or_default())
         }
 
@@ -635,7 +749,8 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
 
             if let Some(track) = next_track {
                 if let Some(cdp) = &st.cdp {
-                    let script = format!("window.MintPlayer && window.MintPlayer.play('{}')", track.uri);
+                    let uri = serde_json::to_string(&track.uri).unwrap_or_else(|_| "\"\"".to_string());
+                    let script = format!("window.MintPlayer && window.MintPlayer.play({})", uri);
                     let _ = cdp.evaluate(&script, false).await;
                 }
                 st.is_playing = true;
@@ -654,7 +769,8 @@ async fn handle_request(req: &str, state: Arc<Mutex<AppState>>) -> (&'static str
 
             if let Some(track) = prev_track {
                 if let Some(cdp) = &st.cdp {
-                    let script = format!("window.MintPlayer && window.MintPlayer.play('{}')", track.uri);
+                    let uri = serde_json::to_string(&track.uri).unwrap_or_else(|_| "\"\"".to_string());
+                    let script = format!("window.MintPlayer && window.MintPlayer.play({})", uri);
                     let _ = cdp.evaluate(&script, false).await;
                 }
                 st.is_playing = true;
@@ -738,47 +854,35 @@ mod tests {
     }
 
     #[test]
-    fn test_build_ytdlp_args_fast_mode() {
+    fn test_build_ytdlp_args_premium_quality() {
         let query = "ytsearch1:Olvídala Binomio de Oro audio";
         let out_tmpl = "/home/user/Descargas/Spotify/test.%(ext)s";
-        let args = build_ytdlp_args(query, out_tmpl, false, true);
+        let args = build_ytdlp_args(query, out_tmpl);
 
-        // Validar extractor Android/Web para evitar throttling de YouTube
-        assert!(args.contains(&"--extractor-args".to_string()));
-        assert!(args.contains(&"youtube:player_client=android,web".to_string()));
-
-        // Validar multihilos de fragmentos
+        // Multihilos de fragmentos
         assert!(args.contains(&"--concurrent-fragments".to_string()));
         assert!(args.contains(&"4".to_string()));
 
-        // Validar selección de stream de audio ligero prioritario (~128k-160k)
+        // Mejor audio disponible (Spotify Premium: 320 kbps)
         assert!(args.contains(&"-f".to_string()));
-        assert!(args.contains(&"ba[abr<=160]/ba[ext=m4a]/ba/b".to_string()));
+        assert!(args.contains(&"bestaudio/best".to_string()));
 
-        // Validar extracción de audio ultra rápida (calidad 5 + LAME 4 threads)
+        // Conversión a MP3 320 kbps + metadatos/carátula incrustados
         assert!(args.contains(&"-x".to_string()));
         assert!(args.contains(&"--audio-format".to_string()));
         assert!(args.contains(&"mp3".to_string()));
         assert!(args.contains(&"--audio-quality".to_string()));
-        assert!(args.contains(&"5".to_string()));
-        assert!(args.contains(&"--postprocessor-args".to_string()));
-        assert!(args.contains(&"ExtractAudio:-threads 4".to_string()));
+        assert!(args.contains(&"320K".to_string()));
+        assert!(args.contains(&"--embed-metadata".to_string()));
+        assert!(args.contains(&"--embed-thumbnail".to_string()));
 
-        // Validar plantilla de salida y consulta
+        // Progreso en tiempo real para la interfaz Premium
+        assert!(args.contains(&"--newline".to_string()));
+        assert!(args.contains(&"--progress-template".to_string()));
+
+        // Plantilla de salida y consulta
         assert_eq!(args[args.len() - 2], out_tmpl);
         assert_eq!(args[args.len() - 1], query);
-    }
-
-    #[test]
-    fn test_build_ytdlp_args_flac_mode() {
-        let query = "ytsearch1:Olvídala Binomio de Oro flac";
-        let out_tmpl = "/home/user/Descargas/Spotify/test.%(ext)s";
-        let args = build_ytdlp_args(query, out_tmpl, true, false);
-
-        assert!(args.contains(&"-x".to_string()));
-        assert!(args.contains(&"--audio-format".to_string()));
-        assert!(args.contains(&"flac".to_string()));
-        assert!(!args.contains(&"--audio-quality".to_string()));
     }
 
     #[test]
@@ -790,19 +894,23 @@ mod tests {
             title: "Súbete a Mi Moto".to_string(),
             status: "queued".to_string(),
             file_path: None,
+            progress: 0.0,
+            error: None,
             updated_at: 1000,
         };
 
         assert_eq!(state.status, "queued");
         assert!(state.file_path.is_none());
 
-        // Simular inicio de descarga
+        // Simular progreso real de descarga
         state.status = "downloading".to_string();
+        state.progress = 42.5;
         state.updated_at = 1005;
-        assert_eq!(state.status, "downloading");
+        assert_eq!(state.progress, 42.5);
 
         // Simular éxito de descarga
         state.status = "completed".to_string();
+        state.progress = 100.0;
         state.file_path = Some("/home/user/Descargas/Spotify/Menudo - Súbete a Mi Moto.mp3".to_string());
         state.updated_at = 1010;
         assert_eq!(state.status, "completed");
@@ -812,6 +920,38 @@ mod tests {
         let json_val = serde_json::to_value(&state).expect("Serialización fallida");
         assert_eq!(json_val["status"], "completed");
         assert_eq!(json_val["key"], key);
+        assert_eq!(json_val["progress"], 100.0);
+    }
+
+    #[test]
+    fn test_parse_progress_line() {
+        assert_eq!(parse_progress_line(" 42.3%"), Some(42.3));
+        assert_eq!(parse_progress_line("download: 87.5%"), Some(87.5));
+        assert_eq!(parse_progress_line("100.0%"), Some(100.0));
+        assert_eq!(parse_progress_line("150%"), Some(100.0));
+        assert_eq!(parse_progress_line("[download] Destination: x.mp3"), None);
+        assert_eq!(parse_progress_line(""), None);
+    }
+
+    #[test]
+    fn test_sanitize_prevents_path_traversal() {
+        assert_eq!(sanitize("../../../etc/passwd"), "___etc_passwd");
+        assert_eq!(sanitize("AC/DC: Back in Black?"), "AC_DC_ Back in Black_");
+        assert_eq!(sanitize("   "), "Desconocido");
+    }
+
+    #[test]
+    fn test_find_existing_audio_detects_downloaded_track() {
+        let dir = std::env::temp_dir().join(format!("amphion-test-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let file = dir.join("Binomio de Oro - Olvídala.mp3");
+        std::fs::write(&file, b"fake-audio").unwrap();
+
+        let found = find_existing_audio(&dir.to_string_lossy(), "Binomio de Oro - Olvídala");
+        assert_eq!(found.as_deref(), Some(file.to_string_lossy().as_ref()));
+
+        assert!(find_existing_audio(&dir.to_string_lossy(), "Otra canción").is_none());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -824,14 +964,12 @@ mod tests {
                 {
                     "name": "Ayer Y Hoy",
                     "artist": "La Combinación Vallenata",
-                    "track_number": 1,
-                    "spotify_url": "https://open.spotify.com/track/12345"
+                    "track_number": 1
                 },
                 {
                     "name": "Me Parte El Corazón",
                     "artist": "Daniel Calderón",
-                    "track_number": 2,
-                    "spotify_url": null
+                    "track_number": 2
                 }
             ]
         }"#;
@@ -841,7 +979,7 @@ mod tests {
         assert_eq!(req.context_name.as_deref(), Some("Vallenatos Virales"));
         assert_eq!(req.tracks.len(), 2);
         assert_eq!(req.tracks[0].name, "Ayer Y Hoy");
-        assert_eq!(req.tracks[0].spotify_url.as_deref(), Some("https://open.spotify.com/track/12345"));
-        assert!(req.tracks[1].spotify_url.is_none());
+        assert_eq!(req.tracks[0].track_number, Some(1));
+        assert_eq!(req.tracks[1].artist, "Daniel Calderón");
     }
 }

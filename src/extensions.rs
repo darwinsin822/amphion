@@ -45,10 +45,18 @@ impl ExtensionManager {
     pub fn load_all(&mut self) -> Result<&Vec<ExtensionInfo>> {
         self.loaded.clear();
 
-        // 1. Cargar desde carpeta local de instalación
+        // 1. Cargar desde carpeta local (ejecución desde el código fuente)
         let local_dir = Path::new("extensions");
         if local_dir.exists() {
             self.scan_directory(local_dir)?;
+        }
+
+        // 1b. Cargar extensiones instaladas por el paquete .deb
+        for installed in ["/usr/share/amphion/extensions", "/usr/share/mintplayer/extensions"] {
+            let dir = Path::new(installed);
+            if dir.exists() {
+                let _ = self.scan_directory(dir);
+            }
         }
 
         // 2. Cargar desde configuración de usuario
@@ -82,6 +90,11 @@ impl ExtensionManager {
                     let manifest_path = path.join("manifest.json");
                     if manifest_path.exists() {
                         if let Ok(info) = self.load_extension(&path) {
+                            // Motor único: se ignora cualquier resto de FLAC que
+                            // haya quedado en instalaciones antiguas.
+                            if info.manifest.id == "flac-resolver" {
+                                continue;
+                            }
                             if !self.loaded.iter().any(|e| e.manifest.id == info.manifest.id) {
                                 self.loaded.push(info);
                             }
@@ -122,45 +135,25 @@ impl ExtensionManager {
         })
     }
 
-    pub fn get_secondary_resolver(&self) -> Option<&ExtensionInfo> {
-        self.loaded.iter().find(|e| {
-            e.manifest.priority.as_deref() == Some("secondary") && e.manifest.enabled
-        })
-    }
-
-    pub fn resolve_download(&self, track_name: &str, artist: &str, prefer_flac: bool) -> serde_json::Value {
-        if prefer_flac {
-            if let Some(sec) = self.get_secondary_resolver() {
-                return json!({
-                    "provider": sec.manifest.id,
-                    "provider_name": sec.manifest.name,
-                    "format": "flac",
-                    "bitrate": 1411,
-                    "quality": "Hi-Res Lossless (16-bit/44.1kHz)",
-                    "title": format!("{} - {} [FLAC]", track_name, artist),
-                    "status": "ready"
-                });
-            }
-        }
-
-        // Predeterminado: Primary YouTube Resolver
+    /// Motor único de descargas: YouTube Audio Resolver (MP3 320 kbps).
+    pub fn resolve_download(&self, track_name: &str, artist: &str) -> serde_json::Value {
         if let Some(prim) = self.get_primary_resolver() {
             json!({
                 "provider": prim.manifest.id,
                 "provider_name": prim.manifest.name,
-                "format": "m4a",
+                "format": "mp3",
                 "bitrate": 320,
-                "quality": "Alta Calidad (YouTube Stream 320kbps)",
+                "quality": "320 kbps (Calidad Premium)",
                 "title": format!("{} - {}", track_name, artist),
                 "status": "ready"
             })
         } else {
             json!({
-                "provider": "builtin",
-                "provider_name": "Standard Resolver",
+                "provider": "youtube",
+                "provider_name": "YouTube Audio Resolver (integrado)",
                 "format": "mp3",
-                "bitrate": 192,
-                "quality": "Standard 192kbps",
+                "bitrate": 320,
+                "quality": "320 kbps (Calidad Premium)",
                 "title": format!("{} - {}", track_name, artist),
                 "status": "ready"
             })
@@ -180,22 +173,15 @@ mod tests {
 
         let ids: Vec<&str> = loaded.iter().map(|e| e.manifest.id.as_str()).collect();
         assert!(ids.contains(&"youtube-resolver"), "Debe incluir youtube-resolver");
-        assert!(ids.contains(&"flac-resolver"), "Debe incluir flac-resolver");
+        assert!(!ids.contains(&"flac-resolver"), "FLAC fue retirado: solo YouTube");
 
         let primary = mgr.get_primary_resolver().expect("Debe haber un resolver primario");
-        assert_eq!(primary.manifest.id, "youtube-resolver", "YouTube debe ser el primario");
+        assert_eq!(primary.manifest.id, "youtube-resolver", "YouTube debe ser el único motor");
 
-        let secondary = mgr.get_secondary_resolver().expect("Debe haber un resolver secundario");
-        assert_eq!(secondary.manifest.id, "flac-resolver", "FLAC debe ser el secundario");
-
-        // Resolver estándar debe usar YouTube
-        let default_res = mgr.resolve_download("Zapateando Juyayay", "Jayac", false);
-        assert_eq!(default_res["provider"], "youtube-resolver");
-        assert_eq!(default_res["format"], "m4a");
-
-        // Resolver con flag prefer_flac debe usar FLAC
-        let flac_res = mgr.resolve_download("Zapateando Juyayay", "Jayac", true);
-        assert_eq!(flac_res["provider"], "flac-resolver");
-        assert_eq!(flac_res["format"], "flac");
+        // El motor único entrega MP3 320 kbps (calidad Spotify Premium).
+        let res = mgr.resolve_download("Zapateando Juyayay", "Jayac");
+        assert_eq!(res["provider"], "youtube-resolver");
+        assert_eq!(res["format"], "mp3");
+        assert_eq!(res["bitrate"], 320);
     }
 }
