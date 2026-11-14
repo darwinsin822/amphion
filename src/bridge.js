@@ -1,4 +1,4 @@
-// Amphion Bridge v0.6.0 - Spotify Web Player Controller & Pure Streaming Engine
+// Amphion Bridge v0.6.1 - Spotify Web Player Controller & Pure Streaming Engine
 // Diseñado para Linux Mint Cinnamon con arquitectura de máximo rendimiento (Zero Downloads)
 
 (() => {
@@ -81,12 +81,25 @@
         background: #121212;
         border: 1px solid #282828;
         border-radius: 12px;
-        width: 520px;
-        max-width: 90vw;
+        width: 560px;
+        max-width: 92vw;
+        max-height: 86vh;
+        overflow-y: auto;
         padding: 24px;
         color: #ffffff;
         box-shadow: 0 16px 40px rgba(0,0,0,0.9);
       }
+      .amphion-modal-box::-webkit-scrollbar { width: 8px; }
+      .amphion-modal-box::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 999px; }
+
+      /* Evita duplicar los controles nativos bajo la barra Amphion */
+      .amphion-native-actionbar-hidden { display: none !important; }
+
+      @keyframes amphion-fade-in {
+        from { opacity: 0; transform: translateY(4px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .amphion-spotify-premium-toolbar { animation: amphion-fade-in 0.25s ease both; }
     `;
     if (!document.getElementById('amphion-global-injected-styles')) {
       document.head.appendChild(globalStyle);
@@ -166,45 +179,38 @@
   const SVG_TOOLBAR_SHUFFLE = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>`;
   const SVG_TOOLBAR_PLAY = `<svg viewBox="0 0 24 24" width="26" height="26" fill="#121212" style="margin-left: 3px;"><polygon points="6,4 20,12 6,20"/></svg>`;
 
-  // 1. INYECCIÓN DEL BOTÓN "Premium" EN LA BARRA SUPERIOR (Reemplazo de Explorar Premium)
+  // 1. BOTÓN "Premium" EN LA BARRA SUPERIOR (reemplaza "Explorar Premium")
+  const PREMIUM_LABEL = 'Premium';
+
   const injectPremiumPill = () => {
-    // Si existe el botón nativo de upgrade, convertir su texto exactamente a "Premium"
-    const nativeUpgradeButtons = document.querySelectorAll(
+    // Ocultar cualquier botón nativo de upgrade para no duplicar el CTA.
+    document.querySelectorAll(
       '[data-testid="upgrade-button"], button[data-testid="upgrade-button"], .main-topBar-UpgradeButton'
-    );
-    nativeUpgradeButtons.forEach(btn => {
-      // Reemplazar texto interno por "Premium"
-      const textContainer = btn.querySelector('span') || btn;
-      if (textContainer.textContent.trim() !== 'Premium') {
-        textContainer.textContent = 'Premium';
-      }
-      btn.style.display = 'inline-flex';
-      btn.style.visibility = 'visible';
-      btn.style.opacity = '1';
-      btn.title = "Cuenta Amphion Premium Activa";
-      btn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        openModal();
-      };
-    });
+    ).forEach(btn => { btn.style.display = 'none'; });
 
-    // Si no existe, inyectar nuestro botón Premium oficial en el top bar
-    let customBtn = document.getElementById('amphion-premium-badge-btn');
-    if (!customBtn && nativeUpgradeButtons.length === 0) {
-      customBtn = document.createElement('button');
-      customBtn.id = 'amphion-premium-badge-btn';
-      customBtn.className = 'amphion-premium-pill-btn';
-      customBtn.textContent = 'Premium';
-      customBtn.title = "Cuenta Amphion Premium Activa";
-      customBtn.onclick = () => openModal();
+    let btn = document.getElementById('amphion-premium-badge-btn');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'amphion-premium-badge-btn';
+      btn.className = 'amphion-premium-pill-btn';
+      btn.innerHTML = `
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true" style="margin-right:6px;">
+          <path d="M8 1.5l1.6 3.3 3.6.5-2.6 2.5.6 3.6L8 9.7l-3.2 1.7.6-3.6L2.8 5.3l3.6-.5L8 1.5z"/>
+        </svg><span>${PREMIUM_LABEL}</span>`;
+      btn.title = "Amphion Premium · Streaming en alta fidelidad";
+      btn.onclick = () => openModal();
+    }
 
-      const topBarActions = document.querySelector('[data-testid="top-bar"] div:last-child') ||
-                            document.querySelector('.main-topBar-actions') ||
-                            document.querySelector('header');
-      if (topBarActions) {
-        topBarActions.insertBefore(customBtn, topBarActions.firstChild);
+    // Anclaje estable junto al avatar del perfil.
+    const userWidget = document.querySelector('[data-testid="user-widget-link"]');
+    if (userWidget && userWidget.parentElement) {
+      if (btn.parentElement !== userWidget.parentElement) {
+        userWidget.parentElement.insertBefore(btn, userWidget);
       }
+    } else {
+      const topBar = document.querySelector('[data-testid="topbar-content"]') ||
+                     document.querySelector('[data-testid="global-nav-bar"]');
+      if (topBar && !topBar.contains(btn)) topBar.appendChild(btn);
     }
   };
 
@@ -385,6 +391,13 @@
         bar.style.alignItems = 'stretch';
         bar.appendChild(toolbar);
       }
+
+      // Una sola barra de acciones: ocultamos los controles nativos duplicados.
+      Array.from(bar.children).forEach(child => {
+        if (child !== toolbar && !child.classList.contains('amphion-filter-input-row')) {
+          child.classList.add('amphion-native-actionbar-hidden');
+        }
+      });
     });
   };
 
@@ -491,7 +504,7 @@
   // Registro del objeto soberano en window para el Guard en Rust
   window.Amphion = {
     ready: true,
-    version: "0.6.0",
+    version: "0.6.1",
     mode: "streaming_pure",
     openSettings: openModal,
     play: async () => {
@@ -522,5 +535,5 @@
     }
   };
 
-  console.log("⚡ [Amphion v0.6.0] Puente de Streaming Puro y Alta Fidelidad inicializado.");
+  console.log("⚡ [Amphion v0.6.1] Puente de Streaming Puro y Alta Fidelidad inicializado.");
 })();

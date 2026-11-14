@@ -18,7 +18,7 @@ const BRIDGE_JS: &str = include_str!("bridge.js");
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🏛️ Amphion v0.6.0 — Reproductor Soberano de Spotify para Linux Mint Cinnamon");
+    println!("🏛️ Amphion v0.6.1 — Reproductor Soberano de Spotify para Linux Mint Cinnamon");
     println!("=========================================================================");
     println!("🚀 Modo de Streaming Puro en Alta Fidelidad (320 kbps)");
 
@@ -69,24 +69,43 @@ async fn main() -> Result<()> {
     }
     adblock.lock().await.set_cdp(Arc::clone(&session));
 
-    // Guardián de inyección: el Web Player es una SPA y se recarga al navegar o iniciar sesión.
-    let guard_session = Arc::clone(&session);
+    // Guardián de inyección: sobrevive a recargas completas de la SPA.
+    // Si el WebSocket CDP se cierra, reconecta a la pestaña y reinyecta el puente.
+    let guard_state = Arc::clone(&app_state);
+    let guard_initial = Arc::clone(&session);
     tokio::spawn(async move {
+        let mut current = guard_initial;
         loop {
             tokio::time::sleep(Duration::from_secs(3)).await;
-            let alive = guard_session
+
+            let alive = current
                 .evaluate("!!(window.Amphion && window.Amphion.ready)", true)
                 .await
                 .ok()
                 .and_then(|v| v.get("value").and_then(|x| x.as_bool()))
                 .unwrap_or(false);
 
-            if !alive {
-                match guard_session.evaluate(BRIDGE_JS, false).await {
-                    Ok(_) => println!("💉 [Guard] Puente Amphion reinyectado tras navegación/recarga."),
-                    Err(e) => println!("⚠️ [Guard] No se pudo reinyectar el puente: {}", e),
-                }
+            if alive {
+                continue;
             }
+
+            // Primer intento: misma pestaña/sesión.
+            if current.evaluate(BRIDGE_JS, false).await.is_ok() {
+                println!("💉 [Guard] Puente Amphion reinyectado en la pestaña actual.");
+                continue;
+            }
+
+            // Segundo intento: reconectar al target de Spotify y reinyectar.
+            let Ok(ws_url) = find_or_create_spotify_tab(cdp_port).await else { continue };
+            let Ok(new_session) = CdpSession::connect(&ws_url).await else { continue };
+            let _ = new_session.evaluate(BRIDGE_JS, false).await;
+
+            {
+                let st = guard_state.lock().await;
+                st.adblock.lock().await.set_cdp(Arc::clone(&new_session));
+            }
+            current = Arc::clone(&new_session);
+            println!("🔌 [Guard] CDP reconectado y puente Amphion reinyectado.");
         }
     });
 

@@ -100,8 +100,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setTrack(track) {
     currentTrack = track;
-    // Expuesto para el panel de descargas (fuera de este alcance de DOMContentLoaded)
+    // Expuesto para el estante de recientes y el panel de ajustes.
     window.__amphionCurrentTrack = track;
+    window.__amphionSetTrack = setTrack;
     footerSong.textContent = track.name;
     footerArtist.textContent = track.artist;
     npTrackTitle.textContent = track.name;
@@ -255,3 +256,93 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+// ==========================================================================
+// Estante "Recientes": selección curada para el modo streaming puro.
+// ==========================================================================
+const RECENT_TRACKS = [
+  {
+    name: 'Como Fui A Enamorarme De Ti',
+    artist: 'Los Bukis',
+    album: 'Y Para Siempre...',
+    duration_ms: 269000,
+    uri: 'spotify:track:recent-1'
+  },
+  {
+    name: 'Tu Cárcel',
+    artist: 'Los Bukis',
+    album: 'Me Volví A Acordar De Ti',
+    duration_ms: 212000,
+    uri: 'spotify:track:recent-2'
+  },
+  {
+    name: 'Obsesión',
+    artist: 'Daniel Calderón, Los Gigantes Del Vallenato',
+    album: 'Obsesión',
+    duration_ms: 245000,
+    uri: 'spotify:track:recent-3'
+  },
+  {
+    name: 'Ayer Y Hoy',
+    artist: 'La Combinación Vallenata, Jean Carlos Centeno',
+    album: 'Ayer Y Hoy',
+    duration_ms: 258000,
+    uri: 'spotify:track:recent-4'
+  },
+  {
+    name: 'A Donde Vayas',
+    artist: 'Los Bukis',
+    album: 'Me Volví A Acordar De Ti',
+    duration_ms: 208000,
+    uri: 'spotify:track:recent-5'
+  },
+  {
+    name: 'Si No Te Hubieras Ido',
+    artist: 'Marco Antonio Solís',
+    album: 'Trozos De Mi Alma',
+    duration_ms: 265000,
+    uri: 'spotify:track:recent-6'
+  }
+];
+
+const escapeHtml = (value) => String(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;');
+
+const renderRecentTracks = () => {
+  const grid = document.getElementById('recent-shelf-grid');
+  if (!grid) return;
+
+  grid.innerHTML = RECENT_TRACKS.map((track, i) => {
+    const mins = Math.floor(track.duration_ms / 60000);
+    const secs = Math.floor((track.duration_ms % 60000) / 1000);
+    const duration = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    return `
+      <div class="recent-card" data-recent="${i}" role="button" tabindex="0">
+        <div class="recent-cover recent-cover-${(i % 4) + 1}"><span>♫</span></div>
+        <div class="recent-title" title="${escapeHtml(track.name)}">${escapeHtml(track.name)}</div>
+        <div class="recent-sub">${escapeHtml(track.artist)} · ${duration}</div>
+      </div>`;
+  }).join('');
+
+  const select = (index) => {
+    if (typeof window.__amphionSetTrack === 'function') {
+      window.__amphionSetTrack(RECENT_TRACKS[index]);
+    }
+  };
+
+  grid.querySelectorAll('[data-recent]').forEach(card => {
+    const index = Number(card.dataset.recent);
+    card.addEventListener('click', () => select(index));
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        select(index);
+      }
+    });
+  });
+};
+
+document.addEventListener('DOMContentLoaded', renderRecentTracks);

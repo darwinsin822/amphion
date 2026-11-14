@@ -23,7 +23,7 @@ Construido desde cero en **Rust** con interfaz Adwaita Dark, motor desacoplado s
 
 ### Opción 1: Instalar el paquete `.deb`
 ```bash
-sudo apt install ./amphion_0.5.1_amd64.deb
+sudo apt install ./amphion_0.5.2_amd64.deb
 ```
 O simplemente haz doble clic sobre el archivo descargado en tu carpeta `~/Descargas`.
 

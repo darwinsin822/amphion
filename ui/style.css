@@ -1153,3 +1153,323 @@ body.spotify-theme {
   margin-top: 4px;
   font-weight: 500;
 }
+
+/* ==========================================================================
+   PASE DE REFINAMIENTO VISUAL — Amphion 0.5.2
+   Corrige desbordes, recortes y portadas planas de la primera maqueta.
+   ========================================================================== */
+*::-webkit-scrollbar { width: 8px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 999px; }
+*::-webkit-scrollbar-thumb:hover { background: #555; }
+
+body.spotify-theme { overflow: hidden; }
+
+.spotify-body {
+  padding: 0 10px 10px;
+  gap: 10px;
+  min-height: 0;
+}
+
+.sidebar-library {
+  width: 272px;
+  min-width: 248px;
+  padding: 14px;
+  overflow: hidden;
+}
+
+.center-content,
+.sidebar-now-playing {
+  min-width: 0;
+}
+
+.sidebar-now-playing {
+  width: 300px;
+  min-width: 276px;
+  padding: 18px;
+}
+
+.topbar-search {
+  width: min(480px, 42vw);
+}
+
+.lib-filters {
+  overflow: visible;
+  flex-wrap: nowrap;
+  padding-bottom: 2px;
+}
+
+.lib-items-list {
+  min-height: 0;
+  padding-right: 2px;
+}
+
+.lib-item {
+  padding: 7px;
+  gap: 10px;
+}
+
+.lib-item-cover {
+  width: 44px;
+  height: 44px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.cover-mono {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
+.jayac-mini-cover {
+  background: radial-gradient(circle at 30% 20%, #3a2a06, #0b0b0b 72%);
+  color: #f5c531;
+  border: 1px solid rgba(245, 197, 49, 0.35);
+}
+
+.jayac-mini-cover .cover-spark {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  font-size: 9px;
+  color: #f5c531;
+  opacity: 0.85;
+}
+
+.menudo-mini-cover {
+  background: linear-gradient(135deg, #5c3b00, #b07a12 58%, #3b2600);
+  color: #ffe28a;
+}
+
+.menudo-mini-cover2 {
+  background: linear-gradient(135deg, #063d25, #0d7a4a 58%, #032417);
+  color: #b8ffd9;
+}
+
+.lodvg-mini-cover {
+  background: linear-gradient(135deg, #2b2b33, #4a4a57);
+  color: #e6e6f0;
+}
+
+.lib-bottom-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  overflow: visible;
+  flex-shrink: 0;
+  padding-top: 8px;
+}
+
+.tool-chip {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 7px 6px;
+  border-radius: 6px;
+  background: #1f1f1f;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.72rem;
+}
+
+.tool-chip:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.daily-mixes-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.daily-mix-card {
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.mix-cover-art {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 14px 14px 34px;
+  color: #fff;
+}
+
+.mix-art-note {
+  font-size: 34px;
+  opacity: 0.85;
+  line-height: 1;
+}
+
+.mix-art-genre {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  opacity: 0.9;
+}
+
+.mix-art-1 {
+  background: radial-gradient(circle at 22% 18%, rgba(0, 229, 255, 0.45), transparent 58%),
+              linear-gradient(135deg, #003b46, #008c9e);
+}
+.mix-art-2 {
+  background: radial-gradient(circle at 80% 12%, rgba(255, 234, 0, 0.45), transparent 55%),
+              linear-gradient(135deg, #4a3b00, #b08a00);
+}
+.mix-art-3 {
+  background: radial-gradient(circle at 20% 80%, rgba(255, 23, 68, 0.45), transparent 58%),
+              linear-gradient(135deg, #3d0010, #9e0030);
+}
+.mix-art-4 {
+  background: radial-gradient(circle at 70% 20%, rgba(245, 0, 87, 0.45), transparent 58%),
+              linear-gradient(135deg, #2d0030, #7a0060);
+}
+
+.mix-bottom-banner {
+  height: 22px;
+  font-size: 0.7rem;
+  letter-spacing: 0.3px;
+}
+
+.green-play-circle {
+  right: 10px;
+  bottom: 34px;
+}
+
+.jayac-big-artwork {
+  background: radial-gradient(circle at 50% 35%, #2a2107, #050505 72%);
+  border: 1px solid rgba(245, 197, 49, 0.35);
+  padding: 16px 12px;
+  gap: 6px;
+}
+
+.jayac-art-center { gap: 2px; }
+
+.jayac-art-emblem {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 38px;
+  color: #f5c531;
+  background: radial-gradient(circle, rgba(245, 197, 49, 0.18), transparent 70%);
+  border: 1px solid rgba(245, 197, 49, 0.3);
+  text-shadow: 0 0 18px rgba(245, 197, 49, 0.5);
+}
+
+.jayac-gold-text {
+  font-size: 1.55rem;
+  letter-spacing: 4px;
+}
+
+.jayac-art-bottom { font-size: 0.72rem; }
+
+.artist-about-card { padding: 14px 16px; }
+.np-song-title { font-size: 1.25rem; }
+
+.spotify-footer-player {
+  height: 80px;
+  gap: 12px;
+}
+
+.footer-left { width: 250px; min-width: 0; }
+.footer-center { flex: 1; min-width: 0; max-width: 640px; }
+.footer-right { gap: 8px; }
+
+@media (max-width: 1250px) {
+  .sidebar-now-playing { display: none; }
+}
+
+@media (max-width: 1000px) {
+  .sidebar-library { width: 240px; }
+  .topbar-search { width: min(380px, 38vw); }
+}
+
+@media (max-width: 820px) {
+  .sidebar-library { display: none; }
+  .daily-mixes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .footer-left { width: 190px; }
+}
+
+/* Estante de descargas recientes */
+.recent-shelf-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.recent-card {
+  background: #181818;
+  border-radius: 10px;
+  padding: 9px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.recent-card:hover {
+  background: #282828;
+  transform: translateY(-2px);
+}
+
+.recent-cover {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  color: rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.recent-cover-1 { background: linear-gradient(135deg, #1db954, #0a5c2a); }
+.recent-cover-2 { background: linear-gradient(135deg, #4b2ea8, #1b1140); }
+.recent-cover-3 { background: linear-gradient(135deg, #b03a2e, #3d100b); }
+.recent-cover-4 { background: linear-gradient(135deg, #1f6f8b, #0b2b36); }
+
+.recent-title {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-sub {
+  margin-top: 2px;
+  font-size: 0.68rem;
+  color: var(--sp-text-subdued);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-empty {
+  grid-column: 1 / -1;
+  padding: 24px;
+  color: #8a8a8a;
+  background: #181818;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 1100px) {
+  .recent-shelf-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 820px) {
+  .recent-shelf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* El panel derecho debe desplazarse, no comprimir la portada */
+.sidebar-now-playing > * { flex-shrink: 0; }
+.np-big-cover-wrap { flex-shrink: 0; }
