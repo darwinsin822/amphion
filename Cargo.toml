@@ -1,6 +1,6 @@
 [package]
 name = "amphion"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2021"
 authors = ["Darwin Sin"]
 description = "Amphion - Reproductor soberano de Spotify y streaming en alta fidelidad para Linux Mint Cinnamon"
@@ -13,8 +13,6 @@ tokio = { version = "1.40", features = [
     "io-util",
     "sync",
     "time",
-    "process",
-    "fs",
     "signal",
 ] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
@@ -23,8 +21,6 @@ serde_json = "1.0"
 tokio-tungstenite = { version = "0.24", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
 futures-util = "0.3"
 anyhow = "1.0"
-url = "2.5"
-percent-encoding = "2.3"
 
 [profile.release]
 opt-level = 3

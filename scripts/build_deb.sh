@@ -14,8 +14,6 @@ mkdir -p "$BUILD_DIR/usr/bin"
 mkdir -p "$BUILD_DIR/usr/share/applications"
 mkdir -p "$BUILD_DIR/usr/share/icons/hicolor/scalable/apps"
 mkdir -p "$BUILD_DIR/usr/share/icons/hicolor/512x512/apps"
-mkdir -p "$BUILD_DIR/usr/share/amphion/extensions"
-mkdir -p "$BUILD_DIR/usr/share/mintplayer/extensions"
 mkdir -p "$BUILD_DIR/usr/share/doc/$PKG_NAME"
 
 # 1. Compilar binario release si es necesario
@@ -28,11 +26,6 @@ cp target/release/amphion "$BUILD_DIR/usr/bin/amphion"
 strip --strip-all "$BUILD_DIR/usr/bin/amphion"
 chmod 755 "$BUILD_DIR/usr/bin/amphion"
 ln -sf amphion "$BUILD_DIR/usr/bin/mintplayer"
-
-# 3. Copiar extensiones por defecto
-echo "🧩 Integrando extensiones oficiales de streaming..."
-cp -r extensions/* "$BUILD_DIR/usr/share/amphion/extensions/"
-cp -r extensions/* "$BUILD_DIR/usr/share/mintplayer/extensions/"
 
 # 4. Entrada de escritorio y assets oficiales de Spotify
 echo "🎨 [3/6] Integrando entrada .desktop y logos oficiales de Spotify..."

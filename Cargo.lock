@@ -4,17 +4,15 @@ version = 4
 
 [[package]]
 name = "amphion"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "anyhow",
  "futures-util",
- "percent-encoding",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
  "tokio-tungstenite",
- "url",
 ]
 
 [[package]]

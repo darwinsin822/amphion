@@ -1,4 +1,4 @@
-// Amphion Bridge v0.6.1 - Spotify Web Player Controller & Pure Streaming Engine
+// Amphion Bridge v0.6.2 - Spotify Web Player Controller & Pure Streaming Engine
 // Diseñado para Linux Mint Cinnamon con arquitectura de máximo rendimiento (Zero Downloads)
 
 (() => {
@@ -461,8 +461,8 @@
             <span style="color: #1ed760; font-weight: 700; font-size: 13px;">✓ Activado</span>
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 13px; font-weight: 600; color: #ffffff;">Bloqueador de anuncios Amphion</span>
-            <span style="color: #1ed760; font-weight: 700; font-size: 13px;">✓ Activo</span>
+            <span style="font-size: 13px; font-weight: 600; color: #ffffff;">Modo de reproducción</span>
+            <span style="color: #1ed760; font-weight: 700; font-size: 13px;">Streaming puro</span>
           </div>
         </div>
 
@@ -504,7 +504,7 @@
   // Registro del objeto soberano en window para el Guard en Rust
   window.Amphion = {
     ready: true,
-    version: "0.6.1",
+    version: "0.6.2",
     mode: "streaming_pure",
     openSettings: openModal,
     play: async () => {
@@ -535,5 +535,5 @@
     }
   };
 
-  console.log("⚡ [Amphion v0.6.1] Puente de Streaming Puro y Alta Fidelidad inicializado.");
+  console.log("⚡ [Amphion v0.6.2] Puente de Streaming Puro y Alta Fidelidad inicializado.");
 })();
