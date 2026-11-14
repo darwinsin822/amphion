@@ -260,11 +260,11 @@
           </div>
           <div class="ext-spotify-box">
             <div class="ext-top-line">
-              <span class="ext-title-bold">YouTube Audio Resolver</span>
+              <span class="ext-title-bold">Streaming Audio Optimizer</span>
               <span class="ext-active-badge">Activa</span>
             </div>
-            <p class="ext-body-text">Motor único de descargas: audio de YouTube convertido a MP3 320 kbps con carátula y metadatos.</p>
-            <div class="ext-perm-tag">Permiso de red: <code>https://youtube.com</code>, <code>disco local</code></div>
+            <p class="ext-body-text">Optimizador de buffers y conexión directa de audio en alta fidelidad.</p>
+            <div class="ext-perm-tag">Permiso: <code>audio stream</code>, <code>búfer en memoria</code></div>
           </div>
         </div>
       </div>
@@ -272,54 +272,35 @@
       <!-- Vista Ajustes -->
       <div class="content-scroll-area" id="view-settings">
         <h2 class="section-main-title" style="margin-bottom: 8px;">Configuración de Amphion</h2>
-        <p style="color: #b3b3b3; font-size: 14px; margin-bottom: 24px;">Gestiona el comportamiento del reproductor web, extensiones de descarga y módulos de seguridad.</p>
+        <p style="color: #b3b3b3; font-size: 14px; margin-bottom: 24px;">Gestiona el comportamiento del reproductor web y módulos de streaming en alta fidelidad.</p>
 
-        <!-- Sección Extensiones de Descarga (Al estilo Orpheon) -->
+        <!-- Sección Streaming en Alta Calidad -->
         <div class="settings-section-card">
           <div class="settings-card-header">
             <h3 style="font-size: 16px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px;">
-              <span>🧩</span> Gestor de Extensiones de Descarga
+              <span>⚡</span> Streaming en Alta Fidelidad (320 kbps)
             </h3>
-            <span class="ext-priority-indicator">YouTube · MP3 320 kbps (Motor único)</span>
+            <span class="ext-priority-indicator">Modo Puro Streaming Activo</span>
           </div>
           <p style="color: #a7a7a7; font-size: 13px; line-height: 1.5; margin-bottom: 16px;">
-            Amphion descarga directamente desde YouTube en MP3 de 320 kbps —la misma calidad de Spotify Premium— con carátula y metadatos incrustados en cada archivo.
+            Amphion reproduce el stream oficial de Spotify con la máxima calidad de audio (320 kbps Vorbis/AAC), sin procesos en segundo plano para una reproducción ultra fluida y ligera.
           </p>
 
-          <!-- 1. Extensión Primaria: YouTube -->
           <div class="download-ext-box primary-ext">
             <div class="ext-box-header">
               <div class="ext-box-title-wrap">
-                <span class="ext-box-icon">🔴</span>
+                <span class="ext-box-icon">🎵</span>
                 <div>
-                  <div class="ext-box-title">YouTube Audio Resolver</div>
-                  <div class="ext-box-sub">Búsqueda directa por artista y extracción de stream de alta tasa de bits</div>
+                  <div class="ext-box-title">Audio Streaming Engine</div>
+                  <div class="ext-box-sub">Reproducción nativa desacoplada vía Chrome DevTools Protocol</div>
                 </div>
               </div>
-              <span class="badge-priority primary">★ Principal / Prioridad 1</span>
+              <span class="badge-priority primary">★ Activo</span>
             </div>
             <div class="ext-box-details">
-              <span class="tag-pill">Formato: MP3 320 kbps</span>
-              <span class="tag-pill">Permiso: red YouTube</span>
-              <span class="tag-pill">Estado: Activo por defecto</span>
-            </div>
-          </div>
-
-          <!-- Carpeta de Descargas y Acciones -->
-          <div class="download-path-box">
-            <div class="path-label-row">
-              <span style="font-weight: 600; font-size: 13px;">Directorio de Destino:</span>
-              <code style="color: #1ed760; background: rgba(30,215,96,0.1); padding: 2px 8px; border-radius: 4px; font-size: 12px;">~/Descargas/Spotify/</code>
-            </div>
-            <div class="download-action-row">
-              <button class="spotify-btn-green" id="btn-trigger-download">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-                <span>Descargar canción actual · YouTube 320 kbps</span>
-              </button>
-              <div id="download-progress-container" style="display: none; flex: 1;">
-                <div class="progress-bar-bg"><div class="progress-bar-fill" id="download-progress-fill" style="width: 0%;"></div></div>
-                <div class="download-status-msg" id="download-status-text">Iniciando extracción...</div>
-              </div>
+              <span class="tag-pill">Tasa de bits: 320 kbps</span>
+              <span class="tag-pill">Modo: Zero-Downloads</span>
+              <span class="tag-pill">AdBlocker: Integrado</span>
             </div>
           </div>
         </div>

@@ -1,0 +1,13 @@
+a96409d6a396efd3311b22de1cd67c6f  usr/share/mintplayer/extensions/lrclib-lyrics/manifest.json
+9696a3892e50d654d526751d776dc9e4  usr/share/mintplayer/extensions/lrclib-lyrics/main.js
+ef8a85543f627f1b58a8685db4fd1cd0  usr/share/applications/amphion.desktop
+ef8a85543f627f1b58a8685db4fd1cd0  usr/share/applications/mintplayer.desktop
+a96409d6a396efd3311b22de1cd67c6f  usr/share/amphion/extensions/lrclib-lyrics/manifest.json
+9696a3892e50d654d526751d776dc9e4  usr/share/amphion/extensions/lrclib-lyrics/main.js
+89c48a9c9c4afab0f6046dbe115f2711  usr/share/icons/hicolor/512x512/apps/amphion.png
+89c48a9c9c4afab0f6046dbe115f2711  usr/share/icons/hicolor/512x512/apps/mintplayer.png
+89c48a9c9c4afab0f6046dbe115f2711  usr/share/icons/hicolor/512x512/apps/spotify.png
+602b2bb871f212ee7e2aab9d906b06b6  usr/share/icons/hicolor/scalable/apps/spotify.svg
+602b2bb871f212ee7e2aab9d906b06b6  usr/share/icons/hicolor/scalable/apps/amphion.svg
+602b2bb871f212ee7e2aab9d906b06b6  usr/share/icons/hicolor/scalable/apps/mintplayer.svg
+30c24d86d9b656734dfb37ba694dfe48  usr/bin/amphion

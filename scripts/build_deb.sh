@@ -30,7 +30,7 @@ chmod 755 "$BUILD_DIR/usr/bin/amphion"
 ln -sf amphion "$BUILD_DIR/usr/bin/mintplayer"
 
 # 3. Copiar extensiones por defecto
-echo "🧩 Integrando motor único de descargas (YouTube Resolver)..."
+echo "🧩 Integrando extensiones oficiales de streaming..."
 cp -r extensions/* "$BUILD_DIR/usr/share/amphion/extensions/"
 cp -r extensions/* "$BUILD_DIR/usr/share/mintplayer/extensions/"
 
@@ -67,7 +67,7 @@ Priority: optional
 Architecture: $ARCH
 Maintainer: Darwin Pinargote Franco <darwinsin@uesma.edu.ec>
 Depends: google-chrome-stable | chromium | chromium-browser
-Recommends: gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, yt-dlp, ffmpeg
+Recommends: gstreamer1.0-plugins-base, gstreamer1.0-plugins-good
 Provides: mintplayer
 Conflicts:
 Replaces: mintplayer
@@ -76,8 +76,7 @@ Homepage: https://github.com/darwinsin/amphion
 Description: Amphion - Reproductor Soberano de Spotify para Linux Mint Cinnamon
  Amphion v${VERSION} integra el reproductor oficial de Spotify con aceleración por hardware
  y DRM Widevine nativo sin cortes publicitarios ni restricciones arbitrarias.
- Incluye motor único de descargas YouTube MP3 320 kbps,
- descargas 1-click por canción y por lote en álbumes/playlists directo a ~/Descargas/Spotify/.
+ Optimizado al 100% para streaming fluido en alta calidad (320 kbps), ultra ligero y con cero sobrecarga.
 EOF
 
 # Generar firmas de integridad md5 para el paquete interno

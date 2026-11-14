@@ -1,9 +1,9 @@
 [package]
 name = "amphion"
-version = "0.5.1"
+version = "0.6.0"
 edition = "2021"
 authors = ["Darwin Sin"]
-description = "Amphion - Reproductor soberano de Spotify y suite de descargas para Linux Mint Cinnamon"
+description = "Amphion - Reproductor soberano de Spotify y streaming en alta fidelidad para Linux Mint Cinnamon"
 
 [dependencies]
 tokio = { version = "1.40", features = [

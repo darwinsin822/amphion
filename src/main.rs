@@ -18,8 +18,9 @@ const BRIDGE_JS: &str = include_str!("bridge.js");
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🏛️ Amphion v0.5.1 — Reproductor Soberano de Spotify para Linux Mint Cinnamon");
+    println!("🏛️ Amphion v0.6.0 — Reproductor Soberano de Spotify para Linux Mint Cinnamon");
     println!("=========================================================================");
+    println!("🚀 Modo de Streaming Puro en Alta Fidelidad (320 kbps)");
 
     let args: Vec<String> = std::env::args().collect();
     let _is_login_mode = args.iter().any(|a| a == "--login" || a == "-l");
@@ -31,10 +32,6 @@ async fn main() -> Result<()> {
     let extensions = Arc::new(Mutex::new(ext_mgr));
     let adblock = Arc::new(Mutex::new(adblock::AdBlockManager::new(None)));
 
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    let download_dir = format!("{}/Descargas/Spotify", home);
-    let _ = std::fs::create_dir_all(&download_dir);
-
     let app_state = Arc::new(Mutex::new(AppState {
         api: None,
         cdp: None,
@@ -42,11 +39,6 @@ async fn main() -> Result<()> {
         extensions: Arc::clone(&extensions),
         is_playing: false,
         adblock: Arc::clone(&adblock),
-        download_dir,
-        // Pool multihilo concurrente ampliado a 6 descargas simultáneas en paralelo para máxima velocidad
-        download_semaphore: Arc::new(tokio::sync::Semaphore::new(6)),
-        download_tracker: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        disk_cache: Arc::new(Mutex::new(None)),
     }));
 
     // Iniciar servidor web local en puerto 4567
@@ -68,7 +60,7 @@ async fn main() -> Result<()> {
     println!("✅ Enlazado por CDP: {}", ws_url);
 
     let session = CdpSession::connect(&ws_url).await?;
-    println!("💉 [3/3] Inyectando puente Web Player y Gestor de Extensiones Amphion...");
+    println!("💉 [3/3] Inyectando puente Web Player y Gestor de Streaming Amphion...");
     session.evaluate(BRIDGE_JS, false).await?;
 
     {
@@ -78,7 +70,6 @@ async fn main() -> Result<()> {
     adblock.lock().await.set_cdp(Arc::clone(&session));
 
     // Guardián de inyección: el Web Player es una SPA y se recarga al navegar o iniciar sesión.
-    // Sin este vigilante el puente (barra de descargas, badges verdes y botones por fila) desaparece.
     let guard_session = Arc::clone(&session);
     tokio::spawn(async move {
         loop {
@@ -92,7 +83,7 @@ async fn main() -> Result<()> {
 
             if !alive {
                 match guard_session.evaluate(BRIDGE_JS, false).await {
-                    Ok(_) => println!("💉 [Guard] Puente Amphion reinyectado tras navegación/re carga."),
+                    Ok(_) => println!("💉 [Guard] Puente Amphion reinyectado tras navegación/recarga."),
                     Err(e) => println!("⚠️ [Guard] No se pudo reinyectar el puente: {}", e),
                 }
             }
@@ -126,10 +117,7 @@ async fn main() -> Result<()> {
     }
 
     println!("\n🖥️ Web Player oficial de Spotify cargado con éxito.");
-    println!("🧩 Motor de descargas YouTube MP3 320 kbps inyectado (único).");
-    println!("🌐 Servicio auxiliar de descargas activo en: http://127.0.0.1:4567");
-
-
+    println!("🎶 Modo Streaming Puro Activo — Sin descargas, máxima ligereza y fluidez.");
     println!("🎶 Amphion activo. Presiona Ctrl+C para salir.");
     tokio::signal::ctrl_c().await?;
     println!("\nCerrando Amphion...");
