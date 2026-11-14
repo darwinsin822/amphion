@@ -9,7 +9,7 @@ Recommends: gstreamer1.0-plugins-base, gstreamer1.0-plugins-good
 Provides: mintplayer
 Conflicts:
 Replaces: mintplayer
-Installed-Size: 5768
+Installed-Size: 5828
 Homepage: https://github.com/darwinsin/amphion
 Description: Amphion - Reproductor Soberano de Spotify para Linux Mint Cinnamon
  Amphion v0.4.3 integra el reproductor oficial de Spotify con aceleración por hardware

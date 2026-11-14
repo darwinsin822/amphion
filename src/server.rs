@@ -146,6 +146,56 @@ pub fn normalize_track_key(artist: &str, title: &str) -> String {
     format!("{}:{}", clean(artist), clean(title))
 }
 
+pub fn build_ytdlp_args(
+    query: &str,
+    out_tmpl: &str,
+    prefer_flac: bool,
+    fast_mode: bool,
+) -> Vec<String> {
+    let mut args = Vec::new();
+    // Prioritizar cliente Android para evitar throttling y capturar streams de audio directos
+    args.push("--extractor-args".to_string());
+    args.push("youtube:player_client=android,web".to_string());
+    args.push("--concurrent-fragments".to_string());
+    args.push("4".to_string());
+    args.push("--no-warnings".to_string());
+    args.push("--no-playlist".to_string());
+    args.push("--buffer-size".to_string());
+    args.push("64K".to_string());
+
+    if prefer_flac {
+        args.push("-x".to_string());
+        args.push("--audio-format".to_string());
+        args.push("flac".to_string());
+    } else {
+        // Modo Ultra Rápido estilo Spotify Premium (priorizar velocidad sobre transcodificación pesada)
+        if fast_mode {
+            // Seleccionar stream de audio directo optimizado para descarga relámpago (~128-160 kbps)
+            args.push("-f".to_string());
+            args.push("ba[abr<=160]/ba[ext=m4a]/ba/b".to_string());
+            args.push("-x".to_string());
+            args.push("--audio-format".to_string());
+            args.push("mp3".to_string());
+            args.push("--audio-quality".to_string());
+            args.push("5".to_string()); // Calidad 5 (130-160kbps): codificación relámpago en CPU <1s
+            args.push("--postprocessor-args".to_string());
+            args.push("ExtractAudio:-threads 4".to_string());
+        } else {
+            args.push("-x".to_string());
+            args.push("--audio-format".to_string());
+            args.push("mp3".to_string());
+            args.push("--audio-quality".to_string());
+            args.push("0".to_string());
+        }
+    }
+
+    args.push("-o".to_string());
+    args.push(out_tmpl.to_string());
+    args.push(query.to_string());
+
+    args
+}
+
 async fn download_direct_url(url: &str, out_path: &str) -> Result<()> {
     let client = reqwest::Client::builder()
         .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
@@ -261,22 +311,29 @@ fn trigger_hybrid_download(
             let audio_format = if prefer_flac { "flac" } else { "mp3" };
             let out_tmpl = format!("{}/{}.%(ext)s", dir, file);
 
+            let args = build_ytdlp_args(&query, &out_tmpl, prefer_flac, true);
+
             let mut cmd = tokio::process::Command::new(ytdlp_path);
-            cmd.arg("--extractor-args").arg("youtube:player_client=android,web");
-            cmd.arg("--concurrent-fragments").arg("4");
-            cmd.arg("--no-warnings");
-            cmd.arg("--no-playlist");
-            cmd.arg("-x").arg("--audio-format").arg(audio_format);
-
-            if !prefer_flac {
-                cmd.arg("--audio-quality").arg("0");
+            for arg in args {
+                cmd.arg(arg);
             }
-
-            cmd.arg("-o").arg(&out_tmpl).arg(&query);
 
             let status = cmd.status().await;
             if status.map(|s| s.success()).unwrap_or(false) {
-                final_saved_path = Some(format!("{}/{}.{}", dir, file, audio_format));
+                let candidate = format!("{}/{}.{}", dir, file, audio_format);
+                if std::path::Path::new(&candidate).exists() {
+                    final_saved_path = Some(candidate);
+                } else if let Ok(mut entries) = tokio::fs::read_dir(&dir).await {
+                    while let Ok(Some(entry)) = entries.next_entry().await {
+                        let p = entry.path();
+                        if let Some(stem) = p.file_stem() {
+                            if stem == std::ffi::OsStr::new(&file) {
+                                final_saved_path = Some(p.to_string_lossy().to_string());
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -658,4 +715,133 @@ fn extract_body(req: &str) -> String {
 
 fn urlencoding_decode(s: &str) -> String {
     percent_encoding::percent_decode_str(s).decode_utf8_lossy().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_track_key() {
+        assert_eq!(
+            normalize_track_key("Binomio de Oro", "Olvídala"),
+            "binomio de oro:olvídala"
+        );
+        assert_eq!(
+            normalize_track_key("  Daniel Calderón & Los Gigantes ", " Me Parte El Corazón "),
+            "daniel calderón los gigantes:me parte el corazón"
+        );
+        assert_eq!(
+            normalize_track_key("Menudo!", "Súbete a Mi Moto (1981)"),
+            "menudo:súbete a mi moto 1981"
+        );
+    }
+
+    #[test]
+    fn test_build_ytdlp_args_fast_mode() {
+        let query = "ytsearch1:Olvídala Binomio de Oro audio";
+        let out_tmpl = "/home/user/Descargas/Spotify/test.%(ext)s";
+        let args = build_ytdlp_args(query, out_tmpl, false, true);
+
+        // Validar extractor Android/Web para evitar throttling de YouTube
+        assert!(args.contains(&"--extractor-args".to_string()));
+        assert!(args.contains(&"youtube:player_client=android,web".to_string()));
+
+        // Validar multihilos de fragmentos
+        assert!(args.contains(&"--concurrent-fragments".to_string()));
+        assert!(args.contains(&"4".to_string()));
+
+        // Validar selección de stream de audio ligero prioritario (~128k-160k)
+        assert!(args.contains(&"-f".to_string()));
+        assert!(args.contains(&"ba[abr<=160]/ba[ext=m4a]/ba/b".to_string()));
+
+        // Validar extracción de audio ultra rápida (calidad 5 + LAME 4 threads)
+        assert!(args.contains(&"-x".to_string()));
+        assert!(args.contains(&"--audio-format".to_string()));
+        assert!(args.contains(&"mp3".to_string()));
+        assert!(args.contains(&"--audio-quality".to_string()));
+        assert!(args.contains(&"5".to_string()));
+        assert!(args.contains(&"--postprocessor-args".to_string()));
+        assert!(args.contains(&"ExtractAudio:-threads 4".to_string()));
+
+        // Validar plantilla de salida y consulta
+        assert_eq!(args[args.len() - 2], out_tmpl);
+        assert_eq!(args[args.len() - 1], query);
+    }
+
+    #[test]
+    fn test_build_ytdlp_args_flac_mode() {
+        let query = "ytsearch1:Olvídala Binomio de Oro flac";
+        let out_tmpl = "/home/user/Descargas/Spotify/test.%(ext)s";
+        let args = build_ytdlp_args(query, out_tmpl, true, false);
+
+        assert!(args.contains(&"-x".to_string()));
+        assert!(args.contains(&"--audio-format".to_string()));
+        assert!(args.contains(&"flac".to_string()));
+        assert!(!args.contains(&"--audio-quality".to_string()));
+    }
+
+    #[test]
+    fn test_track_download_state_lifecycle() {
+        let key = normalize_track_key("Menudo", "Súbete a Mi Moto");
+        let mut state = TrackDownloadState {
+            key: key.clone(),
+            artist: "Menudo".to_string(),
+            title: "Súbete a Mi Moto".to_string(),
+            status: "queued".to_string(),
+            file_path: None,
+            updated_at: 1000,
+        };
+
+        assert_eq!(state.status, "queued");
+        assert!(state.file_path.is_none());
+
+        // Simular inicio de descarga
+        state.status = "downloading".to_string();
+        state.updated_at = 1005;
+        assert_eq!(state.status, "downloading");
+
+        // Simular éxito de descarga
+        state.status = "completed".to_string();
+        state.file_path = Some("/home/user/Descargas/Spotify/Menudo - Súbete a Mi Moto.mp3".to_string());
+        state.updated_at = 1010;
+        assert_eq!(state.status, "completed");
+        assert!(state.file_path.is_some());
+
+        // Validar serialización JSON
+        let json_val = serde_json::to_value(&state).expect("Serialización fallida");
+        assert_eq!(json_val["status"], "completed");
+        assert_eq!(json_val["key"], key);
+    }
+
+    #[test]
+    fn test_batch_download_request_parsing() {
+        let payload = r#"{
+            "context_type": "playlist",
+            "context_name": "Vallenatos Virales",
+            "artist_name": "Varios Artistas",
+            "tracks": [
+                {
+                    "name": "Ayer Y Hoy",
+                    "artist": "La Combinación Vallenata",
+                    "track_number": 1,
+                    "spotify_url": "https://open.spotify.com/track/12345"
+                },
+                {
+                    "name": "Me Parte El Corazón",
+                    "artist": "Daniel Calderón",
+                    "track_number": 2,
+                    "spotify_url": null
+                }
+            ]
+        }"#;
+
+        let req: BatchDownloadRequest = serde_json::from_str(payload).expect("Parseo de JSON batch fallido");
+        assert_eq!(req.context_type.as_deref(), Some("playlist"));
+        assert_eq!(req.context_name.as_deref(), Some("Vallenatos Virales"));
+        assert_eq!(req.tracks.len(), 2);
+        assert_eq!(req.tracks[0].name, "Ayer Y Hoy");
+        assert_eq!(req.tracks[0].spotify_url.as_deref(), Some("https://open.spotify.com/track/12345"));
+        assert!(req.tracks[1].spotify_url.is_none());
+    }
 }

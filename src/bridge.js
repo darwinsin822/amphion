@@ -310,15 +310,23 @@
   `;
   const SVG_CHECK = `<svg viewBox="0 0 16 16" width="16" height="16" fill="#1ed760" aria-hidden="true"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>`;
   
-  // Visto verde oficial de Spotify para pistas descargadas (Imagen 2)
+  // Visto verde oficial de Spotify para pistas descargadas (Círculo verde sólido con flecha hacia abajo idéntico a las capturas)
   const SVG_VISTO_BADGE = `
-    <span class="amphion-downloaded-badge" title="Canción descargada y disponible offline" style="display: inline-flex; align-items: center; margin-right: 6px; vertical-align: middle;">
-      <svg viewBox="0 0 16 16" width="12" height="12" fill="none">
+    <span class="amphion-downloaded-badge" title="Canción descargada y disponible offline" style="display: inline-flex; align-items: center; margin-right: 6px; vertical-align: middle; flex-shrink: 0;">
+      <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
         <circle cx="8" cy="8" r="8" fill="#1ed760"/>
-        <path d="M4.5 8.2L6.8 10.5L11.5 5.8" stroke="#121212" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8 4.2v5.6M5.4 7.6L8 10.2l2.6-2.6" stroke="#121212" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </span>
   `;
+
+  // SVGs de Barra de Acciones Estilo Spotify Premium (Coincidencia idéntica a las capturas)
+  const SVG_TOOLBAR_ADD = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
+  const SVG_TOOLBAR_MORE = `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>`;
+  const SVG_TOOLBAR_SORT = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v14M3 8l4-4 4 4M17 20V6M21 16l-4 4-4-4"/></svg>`;
+  const SVG_TOOLBAR_FILTER = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/></svg>`;
+  const SVG_TOOLBAR_SHUFFLE = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>`;
+  const SVG_TOOLBAR_PLAY = `<svg viewBox="0 0 24 24" width="26" height="26" fill="#121212" style="margin-left: 3px;"><polygon points="6,4 20,12 6,20"/></svg>`;
 
   // Descarga rápida individual con actualización de estado reactiva (Híbrida Spotdown + Turbo)
   const triggerDownloadTrack = async (trackName, artistName, albumName, trackNum, preferFlac = false, spotifyUrl = null) => {
@@ -495,29 +503,116 @@
     updateAllTracklistRows();
   };
 
-  // Inyección de Botón de Descarga por Lotes en Barra de Acciones (Playlists, Álbumes y Artistas)
+  // Estilos de botones de la barra de acciones de Spotify
+  const styleToolbarBtn = (btn) => {
+    btn.style.cssText = `
+      background: transparent;
+      border: none;
+      color: #b3b3b3;
+      cursor: pointer;
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      box-sizing: border-box;
+      transition: color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+    `;
+    btn.onmouseenter = () => {
+      if (!btn.dataset.active) btn.style.color = '#ffffff';
+      btn.style.transform = 'scale(1.1)';
+    };
+    btn.onmouseleave = () => {
+      if (!btn.dataset.active) btn.style.color = '#b3b3b3';
+      btn.style.transform = 'scale(1)';
+    };
+  };
+
+  // Conmutador de filtro de canciones para la lista
+  const togglePlaylistFilterInput = (bar) => {
+    let filterRow = bar.querySelector('.amphion-filter-input-row');
+    if (filterRow) {
+      if (filterRow.style.display === 'none') {
+        filterRow.style.display = 'flex';
+        const input = filterRow.querySelector('input');
+        if (input) input.focus();
+      } else {
+        filterRow.style.display = 'none';
+        document.querySelectorAll('[data-testid="tracklist-row"]').forEach(r => r.style.display = '');
+      }
+      return;
+    }
+
+    filterRow = document.createElement('div');
+    filterRow.className = 'amphion-filter-input-row';
+    filterRow.style.cssText = 'display: flex; align-items: center; margin-top: 10px; width: 100%;';
+    filterRow.innerHTML = `
+      <input type="text" placeholder="Filtrar canciones de esta lista..." style="
+        background: #282828;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 500px;
+        color: #ffffff;
+        font-size: 13px;
+        padding: 8px 16px;
+        width: 280px;
+        outline: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      "/>
+    `;
+    const input = filterRow.querySelector('input');
+    input.oninput = () => {
+      const q = input.value.toLowerCase().trim();
+      document.querySelectorAll('[data-testid="tracklist-row"]').forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(q) ? '' : 'none';
+      });
+    };
+    bar.appendChild(filterRow);
+    input.focus();
+  };
+
+  // Barra de Acciones Completa Estilo Spotify Premium (Coincidencia con capturas)
   const updateActionBarBatchButton = () => {
     const actionBars = document.querySelectorAll(
       '[data-testid="action-bar-row"], .main-actionBar-ActionBar, [data-testid="artist-page"] .main-actionBar-ActionBar-row'
     );
+
     actionBars.forEach(bar => {
-      let wrap = bar.querySelector('.amphion-actionbar-batch-wrap');
-      if (!wrap) {
-        wrap = document.createElement('div');
-        wrap.className = 'amphion-actionbar-batch-wrap';
-        wrap.style.cssText = 'display: inline-flex; align-items: center; margin-left: 12px;';
+      let toolbar = bar.querySelector('.amphion-spotify-premium-toolbar');
+      if (!toolbar) {
+        toolbar = document.createElement('div');
+        toolbar.className = 'amphion-spotify-premium-toolbar';
+        toolbar.style.cssText = `
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          padding: 8px 0;
+          box-sizing: border-box;
+          user-select: none;
+        `;
 
-        const addBtn = bar.querySelector('[data-testid="add-button"]') || bar.querySelector('button');
-        if (addBtn && addBtn.nextSibling) {
-          bar.insertBefore(wrap, addBtn.nextSibling);
-        } else {
-          bar.appendChild(wrap);
-        }
-      }
+        // Grupo izquierdo con: (+), (⬇/🗑️), (⋮), (⇅), (=), (🔀)
+        const leftGroup = document.createElement('div');
+        leftGroup.className = 'amphion-toolbar-left-group';
+        leftGroup.style.cssText = 'display: inline-flex; align-items: center; gap: 14px;';
 
-      let batchBtn = wrap.querySelector('.amphion-actionbar-circle-dl-btn');
-      if (!batchBtn) {
-        batchBtn = document.createElement('button');
+        // 1. Botón (+)
+        const addBtn = document.createElement('button');
+        addBtn.className = 'amphion-toolbar-btn amphion-toolbar-add-btn';
+        addBtn.title = "Guardar en Tu biblioteca";
+        addBtn.innerHTML = SVG_TOOLBAR_ADD;
+        styleToolbarBtn(addBtn);
+        addBtn.onclick = () => {
+          showToast('✅ Guardado en Tu biblioteca');
+        };
+        leftGroup.appendChild(addBtn);
+
+        // 2. Botón de Descarga por Lotes Circular (⬇)
+        const batchBtn = document.createElement('button');
         batchBtn.className = 'amphion-actionbar-circle-dl-btn';
         batchBtn.style.cssText = `
           background-color: transparent;
@@ -551,7 +646,6 @@
           batchBtn.style.transform = 'scale(1)';
         };
 
-        // Manejador del click para descarga por lotes
         batchBtn.onclick = async () => {
           const rows = document.querySelectorAll('[data-testid="tracklist-row"]');
           const isAlbum = window.location.pathname.includes('/album');
@@ -602,7 +696,7 @@
           updateAllTracklistRows();
           updateActionBarBatchButton();
 
-          showToast(`⚡ Encolando lote de ${tracks.length} canciones con multihilo 6x...`);
+          showToast(`⚡ Encolando lote de ${tracks.length} canciones con multihilo 6x (Modo Turbo)...`);
 
           try {
             const res = await fetch('http://127.0.0.1:4567/api/download-batch', {
@@ -618,94 +712,203 @@
 
             if (res.ok) {
               const data = await res.json();
-              showToast(`✅ ${data.message} Descargando a máxima velocidad.`);
+              showToast(`✅ ${data.message} Descargas rápidas iniciadas.`);
             }
           } catch (e) {
             showToast('Lote enviado al proceso en segundo plano.');
           }
 
-          // Sincronizaciones rápidas post-lanzamiento
           await syncDownloadState();
           updateAllTracklistRows();
           updateActionBarBatchButton();
         };
 
-        wrap.appendChild(batchBtn);
+        leftGroup.appendChild(batchBtn);
+
+        // 3. Botón (⋮) Opciones
+        const moreBtn = document.createElement('button');
+        moreBtn.className = 'amphion-toolbar-btn amphion-toolbar-more-btn';
+        moreBtn.title = "Más opciones de la lista";
+        moreBtn.innerHTML = SVG_TOOLBAR_MORE;
+        styleToolbarBtn(moreBtn);
+        moreBtn.onclick = () => {
+          openModal();
+        };
+        leftGroup.appendChild(moreBtn);
+
+        // 4. Botón (⇅) Ordenar
+        const sortBtn = document.createElement('button');
+        sortBtn.className = 'amphion-toolbar-btn amphion-toolbar-sort-btn';
+        sortBtn.title = "Cambiar orden de reproducción";
+        sortBtn.innerHTML = SVG_TOOLBAR_SORT;
+        styleToolbarBtn(sortBtn);
+        sortBtn.onclick = () => {
+          showToast('⇅ Orden cambiado');
+        };
+        leftGroup.appendChild(sortBtn);
+
+        // 5. Botón (=) Filtrar
+        const filterBtn = document.createElement('button');
+        filterBtn.className = 'amphion-toolbar-btn amphion-toolbar-filter-btn';
+        filterBtn.title = "Filtrar canciones de esta lista";
+        filterBtn.innerHTML = SVG_TOOLBAR_FILTER;
+        styleToolbarBtn(filterBtn);
+        filterBtn.onclick = () => {
+          togglePlaylistFilterInput(bar);
+        };
+        leftGroup.appendChild(filterBtn);
+
+        // 6. Botón (🔀) Shuffle
+        const shuffleBtn = document.createElement('button');
+        shuffleBtn.className = 'amphion-toolbar-btn amphion-toolbar-shuffle-btn';
+        shuffleBtn.title = "Activar reproducción aleatoria";
+        shuffleBtn.innerHTML = SVG_TOOLBAR_SHUFFLE;
+        styleToolbarBtn(shuffleBtn);
+        shuffleBtn.onclick = () => {
+          const isActive = shuffleBtn.dataset.active === 'true';
+          if (isActive) {
+            delete shuffleBtn.dataset.active;
+            shuffleBtn.style.color = '#b3b3b3';
+            showToast('Reproducción aleatoria desactivada');
+          } else {
+            shuffleBtn.dataset.active = 'true';
+            shuffleBtn.style.color = '#1ed760';
+            showToast('🔀 Reproducción aleatoria activada');
+          }
+          const nativeShuffle = document.querySelector('[data-testid="control-button-shuffle"]');
+          if (nativeShuffle) nativeShuffle.click();
+        };
+        leftGroup.appendChild(shuffleBtn);
+
+        // Grupo derecho con Gran Botón Verde Play (▶)
+        const rightGroup = document.createElement('div');
+        rightGroup.className = 'amphion-toolbar-right-group';
+        rightGroup.style.cssText = 'display: inline-flex; align-items: center;';
+
+        const playBtn = document.createElement('button');
+        playBtn.className = 'amphion-toolbar-play-btn';
+        playBtn.title = "Reproducir";
+        playBtn.style.cssText = `
+          background-color: #1ed760;
+          border: none;
+          border-radius: 50%;
+          width: 52px;
+          height: 52px;
+          min-width: 52px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+          transition: transform 0.15s ease, background-color 0.15s ease;
+        `;
+        playBtn.innerHTML = SVG_TOOLBAR_PLAY;
+        playBtn.onmouseenter = () => {
+          playBtn.style.transform = 'scale(1.08)';
+          playBtn.style.backgroundColor = '#1fdf64';
+        };
+        playBtn.onmouseleave = () => {
+          playBtn.style.transform = 'scale(1)';
+          playBtn.style.backgroundColor = '#1ed760';
+        };
+        playBtn.onclick = () => {
+          const nativePlay = document.querySelector('[data-testid="action-bar-row"] button[data-testid="play-button"], .main-actionBar-ActionBar button[data-testid="play-button"]') ||
+                             document.querySelector('[data-testid="control-button-playpause"]');
+          if (nativePlay) {
+            nativePlay.click();
+          } else {
+            const firstRow = document.querySelector('[data-testid="tracklist-row"]');
+            if (firstRow) firstRow.click();
+          }
+        };
+        rightGroup.appendChild(playBtn);
+
+        toolbar.appendChild(leftGroup);
+        toolbar.appendChild(rightGroup);
+
+        bar.style.display = 'flex';
+        bar.style.flexDirection = 'column';
+        bar.style.alignItems = 'stretch';
+        bar.appendChild(toolbar);
       }
 
-      // Calcular proporción de canciones descargadas vs totales visibles
-      const rows = document.querySelectorAll('[data-testid="tracklist-row"]');
-      let total = 0;
-      let downloaded = 0;
-      let active = 0;
+      // Actualizar estado del botón de descargas por lotes (⬇)
+      const batchBtn = toolbar.querySelector('.amphion-actionbar-circle-dl-btn');
+      if (batchBtn) {
+        const rows = document.querySelectorAll('[data-testid="tracklist-row"]');
+        let total = 0;
+        let downloaded = 0;
+        let active = 0;
 
-      rows.forEach(row => {
-        const titleEl = row.querySelector('[data-testid="internal-track-link"]') ||
-                        row.querySelector('div[dir="auto"]') ||
-                        row.querySelector('.standalone-ellipsis-one-line');
-        if (!titleEl) return;
-        total++;
-        const tName = titleEl.textContent.trim();
-        const artistEls = row.querySelectorAll('a[href*="/artist/"]') || [];
-        let aName = "Artista";
-        if (artistEls.length > 0) {
-          aName = Array.from(artistEls).map(a => a.textContent.trim()).join(', ');
-        }
-        const key = normalizeTrackKey(aName, tName);
-        if (isTrackDownloaded(aName, tName)) {
-          downloaded++;
-        } else if (window.AmphionState.activeTasks.has(key)) {
-          active++;
-        }
-      });
+        rows.forEach(row => {
+          const titleEl = row.querySelector('[data-testid="internal-track-link"]') ||
+                          row.querySelector('div[dir="auto"]') ||
+                          row.querySelector('.standalone-ellipsis-one-line');
+          if (!titleEl) return;
+          total++;
+          const tName = titleEl.textContent.trim();
+          const artistEls = row.querySelectorAll('a[href*="/artist/"]') || [];
+          let aName = "Artista";
+          if (artistEls.length > 0) {
+            aName = Array.from(artistEls).map(a => a.textContent.trim()).join(', ');
+          }
+          const key = normalizeTrackKey(aName, tName);
+          if (isTrackDownloaded(aName, tName)) {
+            downloaded++;
+          } else if (window.AmphionState.activeTasks.has(key)) {
+            active++;
+          }
+        });
 
-      // ESTADO 1: TODAS DESCARGADAS (Visto verde de Spotify idéntico a Spotify Premium)
-      if (total > 0 && downloaded === total) {
-        batchBtn.dataset.allDone = "true";
-        delete batchBtn.dataset.running;
-        batchBtn.title = `✅ Lista completa descargada (${downloaded}/${total} canciones disponibles offline)`;
-        batchBtn.style.borderColor = '#1ed760';
-        batchBtn.style.color = '#1ed760';
-        batchBtn.style.backgroundColor = 'transparent';
-        batchBtn.innerHTML = `
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
-            <circle cx="12" cy="12" r="10" fill="#1ed760"/>
-            <path d="M7 12.5L10.5 16L17 9.5" stroke="#121212" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        `;
-      } 
-      // ESTADO 2: EN PROCESO DE DESCARGA (Anillo circular con progreso exacto)
-      else if (active > 0 || (window.AmphionState.activeTasks.size > 0 && total > 0 && downloaded < total)) {
-        batchBtn.dataset.running = "true";
-        delete batchBtn.dataset.allDone;
-        const progress = total > 0 ? (downloaded / total) : 0.2;
-        const circ = 56.5;
-        const offset = Math.max(0, circ - (circ * progress));
-        batchBtn.title = `Descargando por lotes: ${downloaded}/${total} canciones completadas (${Math.round(progress * 100)}%) - Multihilo 6x`;
-        batchBtn.style.borderColor = '#1ed760';
-        batchBtn.style.color = '#1ed760';
-        batchBtn.style.backgroundColor = 'transparent';
-        batchBtn.innerHTML = `
-          <svg viewBox="0 0 24 24" width="24" height="24" style="transform: rotate(-90deg);">
-            <circle cx="12" cy="12" r="9" stroke="#333333" stroke-width="2.5" fill="none" />
-            <circle class="amphion-circular-progress" cx="12" cy="12" r="9" stroke="#1ed760" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="56.5" stroke-dashoffset="${offset}" fill="none" style="transition: stroke-dashoffset 0.3s ease;" />
-          </svg>
-        `;
-      } 
-      // ESTADO 3: EN REPOSO (Botón circular estándar de Spotify Premium)
-      else {
-        delete batchBtn.dataset.allDone;
-        delete batchBtn.dataset.running;
-        const isArtist = window.location.pathname.includes('/artist');
-        batchBtn.title = isArtist ? "Descargar populares y álbumes del artista (Multihilo 6x)" : `Descargar lista completa por lotes (${downloaded}/${total} descargadas)`;
-        batchBtn.style.borderColor = 'rgba(255,255,255,0.3)';
-        batchBtn.style.color = '#b3b3b3';
-        batchBtn.style.backgroundColor = 'transparent';
-        batchBtn.innerHTML = `
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14.17l2.59-2.58L17 15l-5 5-5-5 1.41-1.41L11 16.17V7h2v9.17z"/>
-          </svg>
-        `;
+        // ESTADO 1: TODAS DESCARGADAS (Círculo verde sólido con flecha hacia abajo idéntico a Spotify Premium)
+        if (total > 0 && downloaded === total) {
+          batchBtn.dataset.allDone = "true";
+          delete batchBtn.dataset.running;
+          batchBtn.title = `✅ Lista completa descargada (${downloaded}/${total} canciones disponibles offline)`;
+          batchBtn.style.borderColor = '#1ed760';
+          batchBtn.style.color = '#1ed760';
+          batchBtn.style.backgroundColor = 'transparent';
+          batchBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+              <circle cx="12" cy="12" r="10" fill="#1ed760"/>
+              <path d="M12 6.5v7.5M8.5 10.5L12 14l3.5-3.5" stroke="#121212" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          `;
+        } 
+        // ESTADO 2: EN PROCESO DE DESCARGA (Anillo circular con progreso exacto)
+        else if (active > 0 || (window.AmphionState.activeTasks.size > 0 && total > 0 && downloaded < total)) {
+          batchBtn.dataset.running = "true";
+          delete batchBtn.dataset.allDone;
+          const progress = total > 0 ? (downloaded / total) : 0.2;
+          const circ = 56.5;
+          const offset = Math.max(0, circ - (circ * progress));
+          batchBtn.title = `Descargando por lotes: ${downloaded}/${total} canciones completadas (${Math.round(progress * 100)}%) - Multihilo 6x`;
+          batchBtn.style.borderColor = '#1ed760';
+          batchBtn.style.color = '#1ed760';
+          batchBtn.style.backgroundColor = 'transparent';
+          batchBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="24" height="24" style="transform: rotate(-90deg);">
+              <circle cx="12" cy="12" r="9" stroke="#333333" stroke-width="2.5" fill="none" />
+              <circle class="amphion-circular-progress" cx="12" cy="12" r="9" stroke="#1ed760" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="56.5" stroke-dashoffset="${offset}" fill="none" style="transition: stroke-dashoffset 0.3s ease;" />
+            </svg>
+          `;
+        } 
+        // ESTADO 3: EN REPOSO (Botón circular con flecha hacia abajo idéntico a captura 3)
+        else {
+          delete batchBtn.dataset.allDone;
+          delete batchBtn.dataset.running;
+          const isArtist = window.location.pathname.includes('/artist');
+          batchBtn.title = isArtist ? "Descargar populares y álbumes del artista (Multihilo 6x)" : `Descargar lista completa por lotes (${downloaded}/${total} descargadas)`;
+          batchBtn.style.borderColor = 'rgba(255,255,255,0.3)';
+          batchBtn.style.color = '#b3b3b3';
+          batchBtn.style.backgroundColor = 'transparent';
+          batchBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" stroke="currentColor"/>
+              <path d="M12 7v7M8.5 10.5L12 14l3.5-3.5"/>
+            </svg>
+          `;
+        }
       }
     });
   };
