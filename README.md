@@ -21,7 +21,7 @@ Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spot
 
 ### Opción 1: paquete `.deb`
 ```bash
-sudo apt install ./amphion_0.6.2_amd64.deb
+sudo apt install ./amphion_0.6.3_amd64.deb
 ```
 O haz doble clic sobre el archivo en `~/Descargas`.
 

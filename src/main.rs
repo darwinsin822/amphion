@@ -2,14 +2,37 @@ mod cdp;
 
 use anyhow::Result;
 use cdp::{find_or_create_spotify_tab, CdpSession, ChromeProcess};
+use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
 
 const BRIDGE_JS: &str = include_str!("bridge.js");
 
+/// Endpoints de publicidad que el Web Player no necesita para reproducir música.
+const AD_URL_PATTERNS: &[&str] = &[
+    "*spclient.wg.spotify.com/ad-logic*",
+    "*spclient.wg.spotify.com/ads/*",
+    "*spclient.wg.spotify.com/gabo-receiver-service*",
+    "*adeventtracker.spotify.com*",
+    "*ads-fa.spotify.com*",
+    "*audio-ak-spotify-com.akamaized.net/ads*",
+    "*audio4-ak-spotify-com.akamaized.net/ads*",
+    "*pagead2.googlesyndication.com*",
+    "*securepubads.g.doubleclick.net*",
+    "*pubads.g.doubleclick.net*",
+    "*doubleclick.net*",
+];
+
+async fn enable_adblock(session: &CdpSession) {
+    match session.call("Network.setBlockedURLs", json!({ "urls": AD_URL_PATTERNS })).await {
+        Ok(_) => println!("🛡️ Bloqueo de anuncios activo (CDN y ad-logic)."),
+        Err(e) => println!("⚠️ No se pudo activar el bloqueo de anuncios: {}", e),
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🏛️ Amphion v0.6.2 — Streaming puro sobre el Web Player de Spotify");
+    println!("🏛️ Amphion v0.6.3 — Streaming puro sobre el Web Player de Spotify");
     println!("=====================================================================");
 
     let args: Vec<String> = std::env::args().collect();
@@ -26,6 +49,7 @@ async fn main() -> Result<()> {
 
     println!("💉 [3/3] Inyectando la capa Amphion Premium...");
     session.evaluate(BRIDGE_JS, false).await?;
+    enable_adblock(&session).await;
 
     // Guardián: sobrevive a recargas de la SPA y a la pérdida del WebSocket CDP.
     let mut current = Arc::clone(&session);
@@ -52,6 +76,7 @@ async fn main() -> Result<()> {
             let Ok(new_ws) = find_or_create_spotify_tab(cdp_port).await else { continue };
             let Ok(new_session) = CdpSession::connect(&new_ws).await else { continue };
             let _ = new_session.evaluate(BRIDGE_JS, false).await;
+            enable_adblock(&new_session).await;
             current = new_session;
             println!("🔌 [Guard] CDP reconectado; capa Amphion restaurada.");
         }
@@ -63,4 +88,16 @@ async fn main() -> Result<()> {
 
     println!("\nCerrando Amphion...");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adblock_cubre_endpoints_de_publicidad() {
+        assert!(AD_URL_PATTERNS.iter().any(|p| p.contains("ad-logic")));
+        assert!(AD_URL_PATTERNS.iter().any(|p| p.contains("doubleclick")));
+        assert!(AD_URL_PATTERNS.iter().any(|p| p.contains("/ads")));
+    }
 }

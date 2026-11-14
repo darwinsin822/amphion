@@ -1,4 +1,4 @@
-// Amphion Bridge v0.6.2 - Spotify Web Player Controller & Pure Streaming Engine
+// Amphion Bridge v0.6.3 - Spotify Web Player Controller & Pure Streaming Engine
 // Diseñado para Linux Mint Cinnamon con arquitectura de máximo rendimiento (Zero Downloads)
 
 (() => {
@@ -124,6 +124,106 @@
       }
     } catch (e) {}
     return null;
+  };
+
+  // ==========================================================================
+  // GUARDIÁN DE ANUNCIOS — detecta publicidad, la silencia y trata de saltarla
+  // ==========================================================================
+  const AD_TEXT_RE = /(^|\b)(advertisement|advertising|anuncio|publicidad)(\b|$)/i;
+  const AD_SELECTORS = [
+    '[data-testid="ad-billboard"]',
+    '[data-testid="advertisement"]',
+    '[data-testid="ad-label"]',
+    '[data-testid="now-playing-widget"] [data-testid="context-item-info-ad"]',
+    '[aria-label*="Advertisement" i]',
+    '[aria-label*="Anuncio" i]'
+  ];
+
+  let adGuardActive = false;
+  let adMutedState = null;
+  let lastAdSkipAt = 0;
+
+  const isAdPlaying = () => {
+    try {
+      if (AD_SELECTORS.some(sel => document.querySelector(sel))) return true;
+
+      const widget = document.querySelector('[data-testid="now-playing-widget"]');
+      if (widget && AD_TEXT_RE.test(widget.innerText || '')) return true;
+
+      const media = navigator.mediaSession && navigator.mediaSession.metadata;
+      if (media) {
+        const meta = `${media.title || ''} ${media.artist || ''} ${media.album || ''}`;
+        if (AD_TEXT_RE.test(meta)) return true;
+      }
+
+      const audio = document.querySelector('audio');
+      if (audio && /(?:\/ads?\/|advert)/i.test(audio.currentSrc || audio.src || '')) return true;
+    } catch (e) {}
+    return false;
+  };
+
+  const getMuteButton = () => document.querySelector('[data-testid="volume-bar-toggle-mute-button"]');
+
+  const isSpotifyMuted = () => {
+    const btn = getMuteButton();
+    if (!btn) return null;
+    const label = (btn.getAttribute('aria-label') || '').toLowerCase();
+    return /activar sonido|desactivar silenciar|unmute|desilenciar/.test(label);
+  };
+
+  const setSpotifyMuted = (mute) => {
+    const btn = getMuteButton();
+    if (btn) {
+      const muted = isSpotifyMuted();
+      if (mute && muted === false) { btn.click(); return; }
+      if (!mute && muted === true) { btn.click(); return; }
+    }
+    // Respaldo para builds que expongan un elemento <audio>.
+    document.querySelectorAll('audio').forEach(el => { el.muted = !!mute; });
+  };
+
+  const skipAdvertisement = () => {
+    // Evita encadenar saltos y comerse varias canciones seguidas.
+    const now = Date.now();
+    if (now - lastAdSkipAt < 5000) return false;
+    lastAdSkipAt = now;
+
+    const next = document.querySelector('[data-testid="control-button-skip-forward"]');
+    if (next && !next.disabled && next.getAttribute('aria-disabled') !== 'true') {
+      next.click();
+      return true;
+    }
+    // Atajo nativo de Spotify: siguiente pista.
+    for (const target of [document.body, window]) {
+      target.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'ArrowRight', code: 'ArrowRight', ctrlKey: true, bubbles: true
+      }));
+    }
+    return false;
+  };
+
+  const startAdGuard = () => {
+    setInterval(() => {
+      const ad = isAdPlaying();
+      if (ad) {
+        if (!adGuardActive) {
+          adGuardActive = true;
+          adMutedState = isSpotifyMuted();
+          setSpotifyMuted(true);
+          skipAdvertisement();
+          showToast('Anuncio detectado: silenciado y saltado por Amphion');
+        } else {
+          setSpotifyMuted(true);
+          skipAdvertisement();
+        }
+      } else if (adGuardActive) {
+        adGuardActive = false;
+        setSpotifyMuted(adMutedState === true);
+        adMutedState = null;
+        lastAdSkipAt = 0;
+        showToast('Anuncio finalizado. Reproducción restaurada');
+      }
+    }, 1000);
   };
 
   // Notificación flotante Toast
@@ -461,8 +561,8 @@
             <span style="color: #1ed760; font-weight: 700; font-size: 13px;">✓ Activado</span>
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 13px; font-weight: 600; color: #ffffff;">Modo de reproducción</span>
-            <span style="color: #1ed760; font-weight: 700; font-size: 13px;">Streaming puro</span>
+            <span style="font-size: 13px; font-weight: 600; color: #ffffff;">Bloqueo de anuncios</span>
+            <span style="color: #1ed760; font-weight: 700; font-size: 13px;">✓ Activo</span>
           </div>
         </div>
 
@@ -499,14 +599,19 @@
   // Inicialización inmediata
   injectPremiumPill();
   updateActionBarToolbar();
+  startAdGuard();
   setInterval(runDomLoop, 1500);
 
   // Registro del objeto soberano en window para el Guard en Rust
   window.Amphion = {
     ready: true,
-    version: "0.6.2",
+    version: "0.6.3",
     mode: "streaming_pure",
     openSettings: openModal,
+    adGuard: {
+      isAdPlaying,
+      skip: skipAdvertisement
+    },
     play: async () => {
       const s = getServices();
       if (s && s.player) await s.player.resume();
@@ -535,5 +640,5 @@
     }
   };
 
-  console.log("⚡ [Amphion v0.6.2] Puente de Streaming Puro y Alta Fidelidad inicializado.");
+  console.log("⚡ [Amphion v0.6.3] Puente de Streaming Puro y Alta Fidelidad inicializado.");
 })();

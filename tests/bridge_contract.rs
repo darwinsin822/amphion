@@ -29,3 +29,11 @@ fn sin_modulo_de_descargas() {
     assert!(!BRIDGE.contains("amphion-row-dl-btn"));
     assert!(!BRIDGE.contains("syncDownloadState"));
 }
+
+#[test]
+fn guardian_de_anuncios_presente() {
+    assert!(BRIDGE.contains("startAdGuard"));
+    assert!(BRIDGE.contains("skipAdvertisement"));
+    assert!(BRIDGE.contains("volume-bar-toggle-mute-button"));
+    assert!(BRIDGE.contains("context-item-info-ad"));
+}
