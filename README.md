@@ -6,6 +6,16 @@ Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spot
 
 ---
 
+## 🏛️ El Mito y la Aplicación
+
+| 🖥️ Captura de Amphion (Linux Mint) | ⚡ Anfión: Dios y Músico de la Lira Divina |
+| :---: | :---: |
+| ![Amphion Screenshot](assets/amphion_screenshot.png) | ![Anfión](assets/amphion_god.jpg) |
+
+> *En la mitología griega, **Anfión** (hijo de Zeus y Antíope) recibió de Hermes una lira de oro. Su música era tan virtuosa y celestial que las piedras y bloques de mármol cobraban vida y levitaban al son de sus melodías para edificar las monumentales murallas de Tebas. Este reproductor adopta su nombre como símbolo de armonía, agilidad y pureza acústica.*
+
+---
+
 ## Características
 
 * 🚀 **Un solo binario nativo:** sin Electron, sin servidor HTTP local y sin procesos auxiliares.
