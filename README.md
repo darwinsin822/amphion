@@ -28,7 +28,10 @@ Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spot
 
 * 🚀 **Un solo binario nativo:** sin Electron, sin servidor HTTP local y sin procesos auxiliares.
 * 🎧 **Base 100% Spotify Web Player:** la reproducción, la biblioteca y el catálogo son los oficiales de `open.spotify.com`.
-* ✨ **Capa Amphion Premium:** botón Premium, barra de acciones de reproducción y modal de ajustes de audio inyectados sobre la interfaz original.
+* ✨ **Capa Amphion:** barra de acciones de reproducción y modal de ajustes con datos reales inyectados sobre la interfaz original.
+* 🎨 **Motor de temas:** 16 paletas (Spotify, AMOLED, Nord, Dracula, Catppuccin, Vallenato Gold, Cyberpunk, Synthwave, Vaporwave, Miami Vice, Lime Punch, Magma, Aurora, Bubblegum, Electric Blue, Tropical) aplicadas sobre las variables CSS del Web Player y recordadas entre sesiones.
+* 🖼️ **Fondo personalizado:** elegí una imagen local, ajustá desenfoque y oscurecido; las superficies del reproductor se vuelven translúcidas para dejar ver el fondo.
+* 🛡️ **Bloqueo de publicidad:** bloqueo de endpoints de anuncios por CDP más un guardián que silencia y salta los cortes de voz.
 * 🛡️ **Zero Credentials Storage:** el inicio de sesión ocurre en la página oficial de Spotify; Amphion no guarda contraseñas.
 * 🔁 **Guardián CDP:** si Spotify recarga la SPA o se pierde el WebSocket, Amphion reconecta y reinyecta la interfaz automáticamente.
 * 📦 **Paquete nativo `.deb`:** instalación con un clic e integración en el menú de Linux Mint.
@@ -49,7 +52,7 @@ sudo apt install ./amphion_0.6.3_amd64.deb
 ```
 
 ### Opción 2: compilar desde el código fuente
-Requisitos: Rust (cargo) y Google Chrome.
+Requisitos: Rust (cargo) y Google Chrome. El código del repositorio corresponde a la versión **0.7.2**; si el `.deb` publicado en Releases es anterior, compilá desde fuente para obtener los temas y el fondo personalizado.
 ```bash
 cargo build --release
 ./target/release/amphion
