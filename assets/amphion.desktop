@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Amphion
-GenericName=Reproductor Soberano de Spotify
-Comment=Reproductor nativo de Spotify ultra ligero con suite de descargas para Linux Mint Cinnamon
+GenericName=Reproductor de Spotify
+Comment=Reproductor de Spotify con temas Amphion y bloqueo de publicidad para Linux Mint Cinnamon
 Exec=/usr/bin/amphion %U
 Terminal=false
 Type=Application
