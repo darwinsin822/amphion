@@ -1,4 +1,4 @@
-// Amphion Bridge v0.7.0 - Spotify Web Player Controller & Pure Streaming Engine
+// Amphion Bridge v0.7.4 - Spotify Web Player Controller & Pure Streaming Engine
 // Diseñado para Linux Mint Cinnamon con arquitectura de máximo rendimiento (Zero Downloads)
 
 (() => {
@@ -580,7 +580,7 @@
     }
   };
 
-  const VERSION = '0.7.3';
+  const VERSION = '0.7.4';
 
   const THEME_STORAGE_KEY = 'amphion-theme';
   let activeTheme = 'classic';
