@@ -96,6 +96,19 @@ impl CdpSession {
                             if let Some(sender) = map.remove(&id) {
                                 let _ = sender.send(val);
                             }
+                        } else if val.get("method").and_then(|m| m.as_str()) == Some("Runtime.bindingCalled") {
+                            if let Some(payload) = val.get("params").and_then(|p| p.get("payload")).and_then(|s| s.as_str()) {
+                                if let Ok(cmd_val) = serde_json::from_str::<Value>(payload) {
+                                    if cmd_val.get("action").and_then(|a| a.as_str()) == Some("open_url") {
+                                        if let Some(url) = cmd_val.get("url").and_then(|u| u.as_str()) {
+                                            let url_str = url.to_string();
+                                            tokio::task::spawn_blocking(move || {
+                                                let _ = Command::new("xdg-open").arg(&url_str).spawn();
+                                            });
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

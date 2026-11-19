@@ -42,6 +42,19 @@
         transform: scale(0.98) !important;
       }
 
+      /* Botón SpotDown en barra superior y acentos (Estilo Sakukelly Linux) */
+      .amphion-spotdown-btn {
+        background-color: #1ed760 !important;
+        color: #121212 !important;
+      }
+      .amphion-spotdown-btn:hover {
+        background-color: #1fdf64 !important;
+        transform: scale(1.04) !important;
+      }
+      .amphion-spotdown-toolbar-btn:hover {
+        color: #1ed760 !important;
+      }
+
       /* Barra de acciones de reproducción de lista (Spotify Premium Aesthetic) */
       .amphion-toolbar-btn {
         background: transparent !important;
@@ -433,7 +446,7 @@
     }
   };
 
-  const VERSION = '0.7.2';
+  const VERSION = '0.7.3';
 
   const THEME_STORAGE_KEY = 'amphion-theme';
   let activeTheme = 'classic';
@@ -688,9 +701,88 @@
   const SVG_TOOLBAR_SORT = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v14M3 8l4-4 4 4M17 20V6M21 16l-4 4-4-4"/></svg>`;
   const SVG_TOOLBAR_FILTER = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/></svg>`;
   const SVG_TOOLBAR_SHUFFLE = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>`;
+  const SVG_TOOLBAR_SPOTDOWN = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5"/><path d="M4 19h16"/></svg>`;
   const SVG_TOOLBAR_PLAY = `<svg viewBox="0 0 24 24" width="26" height="26" fill="#121212" style="margin-left: 3px;"><polygon points="6,4 20,12 6,20"/></svg>`;
 
-  // 1. BOTÓN "Premium" EN LA BARRA SUPERIOR (reemplaza "Explorar Premium")
+  // ==========================================================================
+  // CONEXIÓN EXTERNA & SPOTDOWN (Estilo Sakukelly Linux)
+  // ==========================================================================
+  const openExternalUrl = (url) => {
+    try {
+      if (typeof window.__mintPlayerPost === 'function') {
+        window.__mintPlayerPost(JSON.stringify({ action: 'open_url', url }));
+      }
+    } catch (e) {}
+    try {
+      window.open(url, '_blank');
+    } catch (e) {}
+  };
+
+  const getSpotifyDownloadUrl = () => {
+    // 1. Detectar si la URL actual de la ventana es un track, album, playlist, artist, episode o show
+    try {
+      const href = window.location.href;
+      if (/open\.spotify\.com\/(?:intl-[a-z]+\/)?(track|album|playlist|artist|episode|show)\/([A-Za-z0-9]+)/.test(href)) {
+        return href;
+      }
+    } catch (e) {}
+
+    // 2. Si hay una pista reproduciéndose en el now-playing-bar
+    try {
+      const trackLink = document.querySelector(
+        '[data-testid="now-playing-widget"] [data-testid="context-item-info-title"] a, ' +
+        '[data-testid="now-playing-widget"] a[data-testid="context-item-link"], ' +
+        '[data-testid="now-playing-widget"] a[href*="/track/"]'
+      );
+      if (trackLink && trackLink.href) {
+        return trackLink.href;
+      }
+    } catch (e) {}
+
+    // 3. Si hay un álbum o playlist asociado a la canción que suena
+    try {
+      const contextLink = document.querySelector(
+        '[data-testid="now-playing-widget"] a[href*="/album/"], ' +
+        '[data-testid="now-playing-widget"] a[href*="/playlist/"]'
+      );
+      if (contextLink && contextLink.href) {
+        return contextLink.href;
+      }
+    } catch (e) {}
+
+    // 4. Si hay una canción en la lista visible seleccionada
+    try {
+      const firstTrack = document.querySelector('[data-testid="tracklist-row"] a[href*="/track/"]');
+      if (firstTrack && firstTrack.href) {
+        return firstTrack.href;
+      }
+    } catch (e) {}
+
+    return null;
+  };
+
+  const openSpotDown = (customUrl = null) => {
+    const target = customUrl || getSpotifyDownloadUrl();
+    const BASE_SPOTDOWN = 'https://spotdown.org/es8';
+    let finalUrl = BASE_SPOTDOWN;
+
+    if (target && target.includes('open.spotify.com')) {
+      finalUrl = `${BASE_SPOTDOWN}?q=${encodeURIComponent(target)}`;
+      showToast('⬇ Conectando con SpotDown en el navegador...');
+    } else {
+      const nowPlaying = readNowPlaying();
+      if (nowPlaying && nowPlaying !== 'Sin reproducción') {
+        finalUrl = `${BASE_SPOTDOWN}?q=${encodeURIComponent(nowPlaying)}`;
+        showToast(`⬇ Buscando "${nowPlaying}" en SpotDown...`);
+      } else {
+        showToast('⬇ Abriendo SpotDown en el navegador...');
+      }
+    }
+
+    openExternalUrl(finalUrl);
+  };
+
+  // 1. BOTÓN "Premium" Y BOTÓN "SpotDown" EN LA BARRA SUPERIOR
   const PREMIUM_LABEL = 'Amphion';
 
   const injectPremiumPill = () => {
@@ -712,16 +804,35 @@
       btn.onclick = () => openModal();
     }
 
+    let spotdownBtn = document.getElementById('amphion-spotdown-btn');
+    if (!spotdownBtn) {
+      spotdownBtn = document.createElement('button');
+      spotdownBtn.id = 'amphion-spotdown-btn';
+      spotdownBtn.className = 'amphion-premium-pill-btn amphion-spotdown-btn';
+      spotdownBtn.innerHTML = `
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true" style="margin-right:6px;">
+          <path d="M8 12l-4.5-4.5 1.4-1.4L7 8.2V2h2v6.2l2.1-2.1 1.4 1.4L8 12zM2 14h12v2H2v-2z"/>
+        </svg><span>SpotDown</span>`;
+      spotdownBtn.title = "Descargar canción o playlist con SpotDown en el navegador (estilo Sakukelly Linux)";
+      spotdownBtn.onclick = () => openSpotDown();
+    }
+
     // Anclaje estable junto al avatar del perfil.
     const userWidget = document.querySelector('[data-testid="user-widget-link"]');
     if (userWidget && userWidget.parentElement) {
       if (btn.parentElement !== userWidget.parentElement) {
         userWidget.parentElement.insertBefore(btn, userWidget);
       }
+      if (spotdownBtn.parentElement !== userWidget.parentElement) {
+        userWidget.parentElement.insertBefore(spotdownBtn, btn);
+      }
     } else {
       const topBar = document.querySelector('[data-testid="topbar-content"]') ||
                      document.querySelector('[data-testid="global-nav-bar"]');
-      if (topBar && !topBar.contains(btn)) topBar.appendChild(btn);
+      if (topBar) {
+        if (!topBar.contains(spotdownBtn)) topBar.appendChild(spotdownBtn);
+        if (!topBar.contains(btn)) topBar.appendChild(btn);
+      }
     }
   };
 
@@ -851,6 +962,14 @@
         };
         leftGroup.appendChild(shuffleBtn);
 
+        // 6. (⬇) Descargar canciones en SpotDown (abre el navegador)
+        const spotdownToolbarBtn = document.createElement('button');
+        spotdownToolbarBtn.className = 'amphion-toolbar-btn amphion-spotdown-toolbar-btn';
+        spotdownToolbarBtn.title = "Descargar canciones en SpotDown (abre el navegador)";
+        spotdownToolbarBtn.innerHTML = SVG_TOOLBAR_SPOTDOWN;
+        spotdownToolbarBtn.onclick = () => openSpotDown();
+        leftGroup.appendChild(spotdownToolbarBtn);
+
         // Grupo derecho: Gran Botón Verde Play (▶)
         const rightGroup = document.createElement('div');
         rightGroup.className = 'amphion-toolbar-right-group';
@@ -910,6 +1029,26 @@
         }
       });
     });
+  };
+
+  // 3b. BOTÓN SPOTDOWN EN LA BARRA INFERIOR DE REPRODUCCIÓN (Now Playing Bar)
+  const injectNowPlayingSpotDownBtn = () => {
+    const bar = document.querySelector('[data-testid="now-playing-bar"]');
+    if (!bar) return;
+    const extraControls = bar.querySelector('[data-testid="now-playing-bar-right-controls"], .main-nowPlayingBar-right');
+    if (!extraControls) return;
+    let npBtn = document.getElementById('amphion-nowplaying-spotdown-btn');
+    if (!npBtn) {
+      npBtn = document.createElement('button');
+      npBtn.id = 'amphion-nowplaying-spotdown-btn';
+      npBtn.className = 'amphion-toolbar-btn amphion-spotdown-toolbar-btn';
+      npBtn.title = "Descargar canción actual con SpotDown en el navegador";
+      npBtn.innerHTML = SVG_TOOLBAR_SPOTDOWN;
+      npBtn.onclick = () => openSpotDown();
+    }
+    if (extraControls && !extraControls.contains(npBtn)) {
+      extraControls.insertBefore(npBtn, extraControls.firstChild);
+    }
   };
 
   // 4. MODAL LIMPIO DE AJUSTES DE STREAMING & AUDIO (Sin descargas)
@@ -988,6 +1127,14 @@
     set('amphion-st-endpoints', adblockEndpointsLabel());
     set('amphion-st-skipped', guardStatsLabel());
     set('amphion-st-reinject', `${reinjections}x`);
+
+    const targetUrl = getSpotifyDownloadUrl();
+    const spotTargetEl = document.getElementById('amphion-modal-spotdown-target');
+    if (spotTargetEl) {
+      spotTargetEl.textContent = targetUrl
+        ? `Detectado: ${targetUrl}`
+        : 'Destino: https://spotdown.org/es8';
+    }
 
     const wpState = document.getElementById('amphion-wp-state');
     if (wpState) {
@@ -1079,6 +1226,32 @@
         </div>
         <input type="file" id="amphion-wp-file" accept="image/*" style="display: none;">
 
+        <!-- Descargador SpotDown (Estilo Sakukelly Linux) -->
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;">
+          <div style="color: #1ed760; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;">
+            DESCARGADOR · SPOTDOWN
+          </div>
+          <div style="font-size: 11px; color: #a7a7a7;">Estilo Sakukelly Linux</div>
+        </div>
+        <div style="background: linear-gradient(135deg, rgba(29, 185, 84, 0.18) 0%, rgba(24, 24, 24, 0.95) 100%); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; border: 1.5px solid rgba(29, 185, 84, 0.45); box-shadow: 0 4px 16px rgba(0,0,0,0.3);">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(29, 185, 84, 0.25); border: 1px solid rgba(29, 185, 84, 0.6); display: flex; align-items: center; justify-content: center; font-size: 20px; color: #1ed760;">⬇</div>
+              <div>
+                <div style="font-size: 15px; font-weight: 800; color: #ffffff;">SpotDown</div>
+                <div style="font-size: 12px; color: #b3b3b3; line-height: 1.4;">Descarga playlists y álbumes completos · Sin registro · MP3 de alta calidad</div>
+              </div>
+            </div>
+            <button id="amphion-modal-spotdown-btn" style="background: #1ed760; color: #121212; border: none; border-radius: 500px; padding: 8px 18px; font-size: 13px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: transform 0.15s ease, background-color 0.15s ease;">
+              Abrir SpotDown ↗
+            </button>
+          </div>
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+            <span id="amphion-modal-spotdown-target" style="color: rgba(255,255,255,0.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 65%;">Destino: spotdown.org/es8</span>
+            <span style="color: #1ed760; font-weight: 700;">✓ Detecta canciones activas</span>
+          </div>
+        </div>
+
         <!-- Protección real -->
         <div style="color: #1ed760; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px;">
           PROTECCIÓN
@@ -1137,6 +1310,11 @@
         setWallpaperTuning(null, Number(dimInput.value));
       };
     }
+
+    const modalSpotdownBtn = document.getElementById('amphion-modal-spotdown-btn');
+    if (modalSpotdownBtn) {
+      modalSpotdownBtn.onclick = () => openSpotDown();
+    }
   };
 
   const openModal = () => {
@@ -1152,6 +1330,7 @@
   const runDomLoop = () => {
     injectPremiumPill();
     updateActionBarToolbar();
+    injectNowPlayingSpotDownBtn();
     if (wallpaperData) markGlassSurfaces();
     const modal = document.getElementById('amphion-modal-backdrop');
     if (modal && modal.style.display !== 'none') refreshSettingsStatus();
@@ -1160,6 +1339,7 @@
   // Inicialización inmediata
   injectPremiumPill();
   updateActionBarToolbar();
+  injectNowPlayingSpotDownBtn();
   startAdGuard();
   try {
     applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || 'classic', true);
@@ -1177,6 +1357,10 @@
     version: VERSION,
     mode: "streaming_pure",
     openSettings: openModal,
+    spotDown: {
+      open: openSpotDown,
+      getUrl: getSpotifyDownloadUrl
+    },
     adGuard: {
       isAdPlaying,
       skip: skipAdvertisement
@@ -1217,5 +1401,5 @@
     }
   };
 
-  console.log(`⚡ [Amphion ${VERSION}] Capa de temas y bloqueo de publicidad inicializada.`);
+  console.log(`⚡ [Amphion ${VERSION}] Capa de temas, adblock y conector SpotDown inicializada.`);
 })();

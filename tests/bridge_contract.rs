@@ -77,3 +77,12 @@ fn corrige_desborde_de_la_cola() {
     assert!(BRIDGE.contains("div:has(> h2 + button)"));
     assert!(BRIDGE.contains("overflow-wrap: anywhere"));
 }
+
+#[test]
+fn spotdown_conectado_con_navegador() {
+    assert!(BRIDGE.contains("spotdown.org"));
+    assert!(BRIDGE.contains("SVG_TOOLBAR_SPOTDOWN"));
+    assert!(BRIDGE.contains("openSpotDown"));
+    assert!(BRIDGE.contains("amphion-spotdown-btn"));
+    assert!(BRIDGE.contains("amphion-spotdown-toolbar-btn"));
+}

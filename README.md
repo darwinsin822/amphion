@@ -1,14 +1,14 @@
 # Amphion 🎵
 
-[![Descargar Amphion .deb](https://img.shields.io/badge/Descargar%20Amphion-v0.7.2%20.deb%20(Linux%20Mint%20%2F%20Ubuntu)-1DB954?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.2_amd64.deb)
+[![Descargar Amphion .deb](https://img.shields.io/badge/Descargar%20Amphion-v0.7.3%20.deb%20(Linux%20Mint%20%2F%20Ubuntu)-1DB954?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.3_amd64.deb)
 [![Última Versión](https://img.shields.io/github/v/release/darwinsin822/amphion?style=for-the-badge&color=1ed760)](https://github.com/darwinsin822/amphion/releases/latest)
 
 > 🚀 **¿Quieres instalar Amphion en tu equipo?**  
-> 👉 **[Descargar instalador directo (.deb v0.7.2)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.2_amd64.deb)** *(1.5 MB — compatible con Linux Mint, Ubuntu y Debian)*
+> 👉 **[Descargar instalador directo (.deb v0.7.3)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.3_amd64.deb)** *(1.5 MB — compatible con Linux Mint, Ubuntu y Debian)*
 
 ---
 
-> **Streaming puro de Spotify sobre el Web Player oficial, con interfaz Premium inyectada, para Linux Mint Cinnamon**
+> **Streaming puro de Spotify sobre el Web Player oficial, con interfaz Premium inyectada y conector SpotDown, para Linux Mint Cinnamon**
 
 Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spotify en una ventana de aplicación y le inyecta una capa de interfaz Premium vía Chrome DevTools Protocol (CDP). No hay servidor local, no hay panel duplicado y no se almacenan credenciales.
 
@@ -28,6 +28,7 @@ Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spot
 
 * 🚀 **Un solo binario nativo:** sin Electron, sin servidor HTTP local y sin procesos auxiliares.
 * 🎧 **Base 100% Spotify Web Player:** la reproducción, la biblioteca y el catálogo son los oficiales de `open.spotify.com`.
+* ⬇️ **Conexión directa con SpotDown (estilo Sakukelly Linux):** botón dedicado en la barra superior (Top Bar), barra de acciones de reproducción (Toolbar) y barra inferior (Now Playing Bar) para abrir SpotDown en el navegador con detección automática del enlace de Spotify o de la canción en reproducción para descarga MP3 de alta calidad sin registro.
 * ✨ **Capa Amphion:** barra de acciones de reproducción y modal de ajustes con datos reales inyectados sobre la interfaz original.
 * 🎨 **Motor de temas:** 16 paletas (Spotify, AMOLED, Nord, Dracula, Catppuccin, Vallenato Gold, Cyberpunk, Synthwave, Vaporwave, Miami Vice, Lime Punch, Magma, Aurora, Bubblegum, Electric Blue, Tropical) aplicadas sobre las variables CSS del Web Player y recordadas entre sesiones.
 * 🖼️ **Fondo personalizado:** elegí una imagen local, ajustá desenfoque y oscurecido; las superficies del reproductor se vuelven translúcidas para dejar ver el fondo.
@@ -41,14 +42,14 @@ Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spot
 ## 📦 Instalación en Linux Mint / Ubuntu
 
 ### Opción 1: Descarga e Instalación Fácil (Recomendada)
-1. **[Descarga aquí el paquete `amphion_0.7.2_amd64.deb`](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.2_amd64.deb)**.
+1. **[Descarga aquí el paquete `amphion_0.7.3_amd64.deb`](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.3_amd64.deb)**.
 2. Abre tu carpeta de **Descargas**, haz doble clic sobre el archivo descargado y presiona **«Instalar paquete»** (o con clic derecho > *Abrir con Instalador de paquetes GDebi*).
 3. ¡Listo! Abre **Amphion** desde el menú de inicio de tu sistema.
 
 #### O instala en 1 comando desde la terminal:
 ```bash
-wget https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.2_amd64.deb
-sudo apt install ./amphion_0.7.2_amd64.deb
+wget https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.3_amd64.deb
+sudo apt install ./amphion_0.7.3_amd64.deb
 ```
 
 ### Opción 2: compilar desde el código fuente

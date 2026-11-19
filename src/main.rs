@@ -46,7 +46,7 @@ async fn enable_adblock(session: &CdpSession) {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🏛️ Amphion v0.7.2 — Temas, fondo personalizado y bloqueo de publicidad");
+    println!("🏛️ Amphion v0.7.3 — Temas, fondo personalizado, bloqueo de publicidad y SpotDown");
     println!("=====================================================================");
 
     let args: Vec<String> = std::env::args().collect();
@@ -97,7 +97,7 @@ async fn main() -> Result<()> {
         }
     });
 
-    println!("\n🖥️ Spotify Web Player activo con temas Amphion y adblock.");
+    println!("\n🖥️ Spotify Web Player activo con temas Amphion, adblock y conector SpotDown.");
     println!("🎶 Presiona Ctrl+C para cerrar Amphion.");
     tokio::signal::ctrl_c().await?;
 
