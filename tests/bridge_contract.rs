@@ -86,3 +86,57 @@ fn spotdown_conectado_con_navegador() {
     assert!(BRIDGE.contains("amphion-spotdown-btn"));
     assert!(BRIDGE.contains("amphion-spotdown-toolbar-btn"));
 }
+
+// ============================================================
+// ZEUS v2 — SpotDown Multi-Servicio · Badge · Atajo · Tooltip
+// ============================================================
+#[test]
+fn spotdown_zeus_v2_multi_servicio() {
+    // Catálogo de servicios (Zeus Blindspot #6 — como Sakukelly Linux)
+    assert!(BRIDGE.contains("SPOTDOWN_SERVICES"));
+    assert!(BRIDGE.contains("SoundLoaders"));
+    assert!(BRIDGE.contains("SpotMate"));
+    assert!(BRIDGE.contains("soundloaders.app"));
+    assert!(BRIDGE.contains("spotmate.online"));
+    // Panel selector de servicio
+    assert!(BRIDGE.contains("openServicePanel"));
+    assert!(BRIDGE.contains("amphion-service-panel"));
+}
+
+#[test]
+fn spotdown_zeus_v2_badge_pulsante() {
+    // Badge animado cuando hay canción activa (Zeus Blindspots #1 & #6)
+    assert!(BRIDGE.contains("amphion-spotdown-pulse"));
+    assert!(BRIDGE.contains("updateSpotDownBadge"));
+    assert!(BRIDGE.contains("data-active"));
+}
+
+#[test]
+fn spotdown_zeus_v2_atajo_teclado() {
+    // Atajo global Alt+D (Zeus Blindspot #4)
+    assert!(BRIDGE.contains("e.altKey"));
+    assert!(BRIDGE.contains("key === 'd'"));
+}
+
+#[test]
+fn spotdown_zeus_v2_animacion_exito() {
+    // Animación visual post-click (Zeus Blindspot #3)
+    assert!(BRIDGE.contains("triggerSpotDownSuccess"));
+    assert!(BRIDGE.contains("amphion-success-flash"));
+    assert!(BRIDGE.contains("amphion-spotdown-success-ring"));
+}
+
+#[test]
+fn spotdown_zeus_v2_tooltip_hover() {
+    // Tooltip con URL preview (Zeus Blindspot #2)
+    assert!(BRIDGE.contains("amphion-spotdown-tooltip"));
+}
+
+#[test]
+fn spotdown_zeus_v2_context_menu() {
+    // Context menu en tracklist rows (Zeus Blindspot #5)
+    assert!(BRIDGE.contains("amphion-ctx-menu"));
+    assert!(BRIDGE.contains("injectTracklistContextMenu"));
+    assert!(BRIDGE.contains("amphion-ctx-open"));
+    assert!(BRIDGE.contains("contextmenu"));
+}
