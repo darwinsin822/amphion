@@ -52,7 +52,7 @@ Este es un requisito central, no un detalle:
 
 ## Sistema de extensiones (requisito central)
 
-Como en Orpheon, pero diseñado desde cero para este programa:
+Arquitectura modular diseñada desde cero para este programa:
 
 - Cada extensión es un `manifest.json` + un `main.js` que corre en un **sandbox** (QuickJS o Deno). Antes de instalarse, declara qué va a hacer y con qué permisos; yo lo veo y lo apruebo. Si una actualización pide más permisos, me lo muestra y yo decido.
 - **API para el autor de extensiones:** `provideAudio(canción)` (de dónde sale el audio), `provideDownload(canción)` (qué archivo bajar), `provideLyrics`, `onTrackChange`, `http.get` solo a los dominios declarados, secciones de inicio y entradas de menú.
@@ -103,7 +103,7 @@ Al final del proyecto, el entregable es un **archivo .deb instalable en Linux Mi
 ## Reglas
 
 - No inventar funciones, precios ni datos. No tocar mis credenciales: el login siempre en la página de Spotify.
-- Código propio desde cero, licencia **MIT** (si en algún punto se copiara código de Orpheon, ahí sí aplicaría su GPL-3.0 con crédito obligatorio, pero este proyecto es desde cero).
+- Código propio desde cero, licencia **MIT**.
 - Si algo no se puede hacer como está pedido (por ejemplo, un límite de la Web API o de Widevine), dímelo claro con la alternativa, no lo disimules.
 - Al final de cada fase, entrégame un resumen de sesión: qué cambió, qué falta y qué sigue.
 
