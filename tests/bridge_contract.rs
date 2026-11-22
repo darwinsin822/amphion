@@ -140,3 +140,35 @@ fn spotdown_zeus_v2_context_menu() {
     assert!(BRIDGE.contains("amphion-ctx-open"));
     assert!(BRIDGE.contains("contextmenu"));
 }
+
+// ============================================================
+// REPRODUCTOR DE MÚSICA DESCARGADA / LOCAL (Estética Spotify)
+// ============================================================
+#[test]
+fn reproductor_local_presente() {
+    assert!(BRIDGE.contains("LocalPlayer"));
+    assert!(BRIDGE.contains("amphion-local-player"));
+    assert!(BRIDGE.contains("amphion-local-btn"));
+    assert!(BRIDGE.contains("amphion-lp-dropzone"));
+    assert!(BRIDGE.contains("amphion-lp-tracklist"));
+    assert!(BRIDGE.contains("amphion-lp-mini"));
+    assert!(BRIDGE.contains("Música Local"));
+}
+
+#[test]
+fn reproductor_local_controles_completos() {
+    assert!(BRIDGE.contains("amphion-lp-playpause"));
+    assert!(BRIDGE.contains("amphion-lp-prev"));
+    assert!(BRIDGE.contains("amphion-lp-next"));
+    assert!(BRIDGE.contains("amphion-lp-shuffle"));
+    assert!(BRIDGE.contains("amphion-lp-repeat"));
+    assert!(BRIDGE.contains("amphion-lp-volume"));
+    assert!(BRIDGE.contains("amphion-lp-progress-bar"));
+    assert!(BRIDGE.contains("localPlayer"));
+}
+
+#[test]
+fn reproductor_local_atajo_teclado() {
+    assert!(BRIDGE.contains("e.altKey"));
+    assert!(BRIDGE.contains("e.key === 'l' || e.key === 'L'"));
+}

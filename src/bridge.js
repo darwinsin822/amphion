@@ -1,4 +1,4 @@
-// Amphion Bridge v0.7.4 - Spotify Web Player Controller & Pure Streaming Engine
+// Amphion Bridge v0.7.5 - Spotify Web Player Controller, Local Player & Pure Streaming Engine
 // Diseñado para Linux Mint Cinnamon con arquitectura de máximo rendimiento (Zero Downloads)
 
 (() => {
@@ -188,6 +188,324 @@
       .amphion-toolbar-btn.amphion-spotdown-toolbar-btn:hover {
         color: #1ed760 !important;
       }
+
+      /* ================================================================
+         AMPHION LOCAL PLAYER — Estética Spotify
+         ================================================================ */
+
+      /* Botón topbar Biblioteca Local */
+      .amphion-local-btn {
+        background-color: #282828 !important;
+        color: #ffffff !important;
+        border: 1px solid #3a3a3a !important;
+      }
+      .amphion-local-btn:hover {
+        background-color: #3a3a3a !important;
+        border-color: #535353 !important;
+        transform: scale(1.04) !important;
+      }
+      .amphion-local-btn[data-active="true"] {
+        background-color: #1ed760 !important;
+        color: #121212 !important;
+        border-color: #1ed760 !important;
+      }
+
+      /* Overlay backdrop */
+      #amphion-local-player {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.88);
+        backdrop-filter: blur(18px);
+        z-index: 10000020;
+        font-family: CircularSp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: #ffffff;
+        animation: amphion-fade-in 0.2s ease both;
+      }
+      #amphion-local-player.amphion-lp-open { display: flex; flex-direction: column; }
+
+      /* Header del player */
+      #amphion-lp-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px 14px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        flex-shrink: 0;
+      }
+      #amphion-lp-header h2 {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.3px;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      #amphion-lp-close {
+        width: 32px; height: 32px;
+        background: rgba(255,255,255,0.08);
+        border: none; border-radius: 50%;
+        color: #b3b3b3; font-size: 18px;
+        cursor: pointer; display: flex;
+        align-items: center; justify-content: center;
+        transition: background 0.15s, color 0.15s;
+      }
+      #amphion-lp-close:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+      /* Layout principal: lista izquierda + controles abajo */
+      #amphion-lp-body {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+        gap: 0;
+      }
+
+      /* Panel izquierdo: cover art + info actual */
+      #amphion-lp-sidebar {
+        width: 280px;
+        min-width: 220px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px 20px;
+        border-right: 1px solid rgba(255,255,255,0.07);
+        gap: 16px;
+        flex-shrink: 0;
+      }
+      #amphion-lp-cover {
+        width: 200px; height: 200px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #282828 0%, #181818 100%);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 72px;
+        box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+        overflow: hidden;
+        flex-shrink: 0;
+        transition: box-shadow 0.3s ease;
+      }
+      #amphion-lp-cover.playing {
+        box-shadow: 0 16px 48px rgba(30,215,96,0.25);
+        animation: amphion-lp-cover-pulse 3s ease-in-out infinite;
+      }
+      @keyframes amphion-lp-cover-pulse {
+        0%, 100% { box-shadow: 0 16px 48px rgba(30,215,96,0.2); }
+        50%       { box-shadow: 0 20px 56px rgba(30,215,96,0.38); }
+      }
+      #amphion-lp-info {
+        text-align: center;
+        width: 100%;
+      }
+      #amphion-lp-title {
+        font-size: 15px; font-weight: 800;
+        white-space: nowrap; overflow: hidden;
+        text-overflow: ellipsis; color: #ffffff;
+        margin-bottom: 4px;
+      }
+      #amphion-lp-subtitle {
+        font-size: 12px; color: #a7a7a7;
+        white-space: nowrap; overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Barra de progreso */
+      #amphion-lp-progress-wrap {
+        width: 100%;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      #amphion-lp-progress-bar {
+        width: 100%; height: 4px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 2px; cursor: pointer;
+        position: relative; overflow: hidden;
+      }
+      #amphion-lp-progress-fill {
+        height: 100%; width: 0%;
+        background: #1ed760;
+        border-radius: 2px;
+        transition: width 0.3s linear;
+        pointer-events: none;
+      }
+      #amphion-lp-progress-bar:hover #amphion-lp-progress-fill { background: #1fdf64; }
+      #amphion-lp-times {
+        display: flex; justify-content: space-between;
+        font-size: 10px; color: #a7a7a7;
+      }
+
+      /* Volumen */
+      #amphion-lp-volume-wrap {
+        display: flex; align-items: center; gap: 8px; width: 100%;
+      }
+      #amphion-lp-vol-icon { font-size: 14px; color: #a7a7a7; cursor: pointer; flex-shrink: 0; }
+      #amphion-lp-volume {
+        flex: 1; height: 4px; cursor: pointer;
+        accent-color: #1ed760;
+        background: transparent;
+      }
+
+      /* Controles de reproducción */
+      #amphion-lp-controls {
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        width: 100%;
+      }
+      .amphion-lp-btn {
+        background: transparent; border: none;
+        color: #b3b3b3; cursor: pointer;
+        width: 36px; height: 36px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 50%; font-size: 16px;
+        transition: color 0.12s, transform 0.12s, background 0.12s;
+        flex-shrink: 0;
+      }
+      .amphion-lp-btn:hover { color: #fff; transform: scale(1.1); background: rgba(255,255,255,0.08); }
+      .amphion-lp-btn.active { color: #1ed760; }
+      #amphion-lp-playpause {
+        width: 52px; height: 52px; font-size: 20px;
+        background: #ffffff; color: #121212;
+        border-radius: 50%; border: none; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        transition: transform 0.12s, background 0.12s;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      }
+      #amphion-lp-playpause:hover { transform: scale(1.06); background: #f0f0f0; }
+      #amphion-lp-playpause:active { transform: scale(0.96); }
+
+      /* Panel derecho: lista de pistas */
+      #amphion-lp-tracklist {
+        flex: 1; overflow-y: auto; padding: 12px 8px;
+      }
+      #amphion-lp-tracklist::-webkit-scrollbar { width: 8px; }
+      #amphion-lp-tracklist::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 4px; }
+
+      /* Zona de drop */
+      #amphion-lp-dropzone {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        color: #535353;
+        text-align: center;
+        padding: 40px;
+      }
+      #amphion-lp-dropzone.drag-over {
+        color: #1ed760;
+        background: rgba(30,215,96,0.05);
+        border: 2px dashed rgba(30,215,96,0.5);
+        border-radius: 12px;
+      }
+      #amphion-lp-dropzone-icon { font-size: 56px; opacity: 0.5; }
+      #amphion-lp-dropzone h3 { font-size: 18px; font-weight: 700; color: #fff; margin: 0; }
+      #amphion-lp-dropzone p { font-size: 13px; margin: 0; }
+      #amphion-lp-pick-btn {
+        background: #1ed760; color: #121212;
+        border: none; border-radius: 500px;
+        padding: 10px 24px; font-size: 13px; font-weight: 800;
+        cursor: pointer; transition: transform 0.12s, background 0.12s;
+      }
+      #amphion-lp-pick-btn:hover { transform: scale(1.04); background: #1fdf64; }
+
+      /* Fila de pista */
+      .amphion-lp-track {
+        display: flex; align-items: center; gap: 10px;
+        padding: 7px 10px; border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.12s;
+        margin-bottom: 2px;
+      }
+      .amphion-lp-track:hover { background: rgba(255,255,255,0.08); }
+      .amphion-lp-track.amphion-lp-active { background: rgba(30,215,96,0.12); }
+      .amphion-lp-track.amphion-lp-active .amphion-lp-track-name { color: #1ed760; }
+      .amphion-lp-track-num {
+        width: 24px; min-width: 24px; text-align: right;
+        font-size: 12px; color: #a7a7a7; font-variant-numeric: tabular-nums;
+      }
+      .amphion-lp-track-num.playing::before { content: '▶'; font-size: 10px; }
+      .amphion-lp-track-info { flex: 1; overflow: hidden; }
+      .amphion-lp-track-name {
+        font-size: 13px; font-weight: 600; color: #ffffff;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .amphion-lp-track-meta {
+        font-size: 11px; color: #a7a7a7;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        margin-top: 1px;
+      }
+      .amphion-lp-track-dur {
+        font-size: 12px; color: #a7a7a7;
+        font-variant-numeric: tabular-nums; flex-shrink: 0;
+      }
+      .amphion-lp-track-remove {
+        font-size: 14px; color: #535353; background: none; border: none;
+        cursor: pointer; padding: 2px 4px; border-radius: 4px;
+        opacity: 0; transition: opacity 0.1s, color 0.1s; flex-shrink: 0;
+      }
+      .amphion-lp-track:hover .amphion-lp-track-remove { opacity: 1; }
+      .amphion-lp-track-remove:hover { color: #ff4040; }
+
+      /* Header de la lista */
+      #amphion-lp-list-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.07);
+        margin-bottom: 4px; flex-shrink: 0;
+      }
+      #amphion-lp-list-header span { font-size: 12px; color: #a7a7a7; }
+      #amphion-lp-list-header button {
+        background: none; border: 1px solid #3a3a3a; color: #b3b3b3;
+        font-size: 11px; font-weight: 700; border-radius: 500px;
+        padding: 3px 10px; cursor: pointer; transition: color 0.1s, border-color 0.1s;
+      }
+      #amphion-lp-list-header button:hover { color: #fff; border-color: #fff; }
+
+      /* Ecualizador animado (pistas activas) */
+      @keyframes amphion-eq-bar {
+        0%, 100% { transform: scaleY(0.3); }
+        50%       { transform: scaleY(1.0); }
+      }
+      .amphion-eq {
+        display: flex; align-items: flex-end; gap: 2px;
+        height: 14px; width: 14px;
+      }
+      .amphion-eq span {
+        display: block; width: 3px; background: #1ed760; border-radius: 1px;
+        transform-origin: bottom;
+        animation: amphion-eq-bar 0.8s ease-in-out infinite;
+      }
+      .amphion-eq span:nth-child(2) { animation-delay: 0.15s; }
+      .amphion-eq span:nth-child(3) { animation-delay: 0.3s; }
+
+      /* Mini-player en la barra inferior */
+      #amphion-lp-mini {
+        display: none;
+        position: fixed;
+        bottom: 90px; right: 20px;
+        background: #282828;
+        border: 1px solid #3a3a3a;
+        border-radius: 12px;
+        padding: 10px 14px;
+        z-index: 10000015;
+        min-width: 240px; max-width: 300px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+        cursor: pointer;
+        font-size: 12px;
+        animation: amphion-fade-in 0.15s ease both;
+      }
+      #amphion-lp-mini .mini-title { font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #amphion-lp-mini .mini-sub   { color: #a7a7a7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+      #amphion-lp-mini-controls { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+      .amphion-lp-mini-btn {
+        background: none; border: none; color: #b3b3b3;
+        cursor: pointer; font-size: 15px; padding: 2px;
+        transition: color 0.1s;
+      }
+      .amphion-lp-mini-btn:hover { color: #fff; }
+      #amphion-lp-mini-progress {
+        flex: 1; height: 3px; background: rgba(255,255,255,0.15);
+        border-radius: 2px; overflow: hidden;
+      }
+      #amphion-lp-mini-fill { height: 100%; background: #1ed760; width: 0%; transition: width 0.3s linear; }
 
       /* Barra de acciones de reproducción de lista (Spotify Premium Aesthetic) */
       .amphion-toolbar-btn {
@@ -580,7 +898,7 @@
     }
   };
 
-  const VERSION = '0.7.4';
+  const VERSION = '0.7.5';
 
   const THEME_STORAGE_KEY = 'amphion-theme';
   let activeTheme = 'classic';
@@ -1081,6 +1399,603 @@
     }
   };
 
+  // ==========================================================================
+  // MÓDULO: REPRODUCTOR LOCAL DE MÚSICA (Amphion Local Player)
+  // Permite escuchar la música descargada con la misma estética de Spotify
+  // ==========================================================================
+  const LocalPlayer = (() => {
+    let tracks = [];          // { file, name, artist, duration, url }
+    let currentIdx = -1;
+    let isPlaying = false;
+    let isShuffle = false;
+    let repeatMode = 0;       // 0=off, 1=all, 2=one
+    let shuffleOrder = [];
+    let audio = null;
+    let uiReady = false;
+
+    // Utilidades
+    const fmtTime = (sec) => {
+      if (!isFinite(sec) || isNaN(sec) || sec < 0) return '0:00';
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    };
+
+    const cleanName = (filename) => {
+      return filename
+        .replace(/\.[^.]+$/, '')           // quitar extensión
+        .replace(/^\d+[\s._-]+/, '')        // quitar número de pista si lo tiene
+        .replace(/[_]/g, ' ')
+        .trim();
+    };
+
+    const guessArtistAndTitle = (filename) => {
+      const base = filename.replace(/\.[^.]+$/, '');
+      const match = base.match(/^(.+?)[\s]*[-–—][\s]*(.+)$/);
+      if (match) {
+        return { artist: match[1].trim(), title: match[2].trim() };
+      }
+      return { artist: 'Música descargada', title: cleanName(filename) };
+    };
+
+    const buildShuffleOrder = () => {
+      shuffleOrder = tracks.map((_, i) => i);
+      for (let i = shuffleOrder.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffleOrder[i], shuffleOrder[j]] = [shuffleOrder[j], shuffleOrder[i]];
+      }
+    };
+
+    const getAudio = () => {
+      if (!audio) {
+        audio = new Audio();
+        audio.addEventListener('timeupdate', onTimeUpdate);
+        audio.addEventListener('ended', onEnded);
+        audio.addEventListener('loadedmetadata', onMetaLoaded);
+        audio.volume = 0.85;
+      }
+      return audio;
+    };
+
+    const loadTrack = (idx) => {
+      if (idx < 0 || idx >= tracks.length) return;
+      currentIdx = idx;
+      const t = tracks[idx];
+      const a = getAudio();
+      a.src = t.url;
+      updateTrackUI();
+    };
+
+    const play = (idx) => {
+      if (idx !== undefined && idx !== currentIdx) {
+        loadTrack(idx);
+      } else if (currentIdx < 0 && tracks.length > 0) {
+        loadTrack(0);
+      }
+      if (currentIdx < 0) return;
+
+      // Pausar Spotify Web Player si está sonando para no mezclar audios
+      try {
+        if (window.Amphion && typeof window.Amphion.pause === 'function') {
+          window.Amphion.pause();
+        }
+      } catch (e) {}
+
+      getAudio().play().then(() => {
+        isPlaying = true;
+        updatePlayUI();
+      }).catch((err) => {
+        console.warn('LocalPlayer error al reproducir:', err);
+      });
+    };
+
+    const pause = () => {
+      getAudio().pause();
+      isPlaying = false;
+      updatePlayUI();
+    };
+
+    const toggle = () => (isPlaying ? pause() : play());
+
+    const nextTrack = () => {
+      if (tracks.length === 0) return;
+      if (repeatMode === 2) {
+        play(currentIdx);
+        return;
+      }
+      if (isShuffle) {
+        const pos = shuffleOrder.indexOf(currentIdx);
+        const next = shuffleOrder[(pos + 1) % shuffleOrder.length];
+        play(next);
+      } else {
+        const next = (currentIdx + 1) % tracks.length;
+        if (next === 0 && repeatMode === 0) {
+          pause();
+          return;
+        }
+        play(next);
+      }
+    };
+
+    const prevTrack = () => {
+      if (tracks.length === 0) return;
+      if (getAudio().currentTime > 3) {
+        getAudio().currentTime = 0;
+        return;
+      }
+      if (isShuffle) {
+        const pos = shuffleOrder.indexOf(currentIdx);
+        const prev = shuffleOrder[(pos - 1 + shuffleOrder.length) % shuffleOrder.length];
+        play(prev);
+      } else {
+        play((currentIdx - 1 + tracks.length) % tracks.length);
+      }
+    };
+
+    const onEnded = () => nextTrack();
+
+    const onTimeUpdate = () => {
+      const a = getAudio();
+      if (!a.duration) return;
+      const pct = (a.currentTime / a.duration) * 100;
+      const fill = document.getElementById('amphion-lp-progress-fill');
+      if (fill) fill.style.width = `${pct}%`;
+      const cur = document.getElementById('amphion-lp-time-cur');
+      if (cur) cur.textContent = fmtTime(a.currentTime);
+
+      const miniFill = document.getElementById('amphion-lp-mini-fill');
+      if (miniFill) miniFill.style.width = `${pct}%`;
+    };
+
+    const onMetaLoaded = () => {
+      const a = getAudio();
+      if (currentIdx >= 0 && (!tracks[currentIdx].duration || !isFinite(tracks[currentIdx].duration))) {
+        tracks[currentIdx].duration = a.duration;
+      }
+      const dur = document.getElementById('amphion-lp-time-dur');
+      if (dur) dur.textContent = fmtTime(a.duration);
+      renderTrackList();
+    };
+
+    const addFiles = (files) => {
+      const newTracks = [];
+      let loaded = 0;
+      Array.from(files).forEach((file) => {
+        if (!file.type.startsWith('audio/') && !/\.(mp3|flac|ogg|wav|aac|m4a|opus|wma)$/i.test(file.name)) {
+          return;
+        }
+        const url = URL.createObjectURL(file);
+        const { artist, title } = guessArtistAndTitle(file.name);
+        const track = { file, name: title, artist, duration: Infinity, url };
+
+        const tmpAudio = new Audio(url);
+        tmpAudio.addEventListener('loadedmetadata', () => {
+          track.duration = tmpAudio.duration;
+          loaded++;
+          if (loaded === newTracks.length) renderTrackList();
+        });
+
+        newTracks.push(track);
+      });
+
+      if (newTracks.length === 0) {
+        showToast('⚠ No se encontraron archivos de audio compatibles (.mp3, .flac, .wav, .m4a)');
+        return;
+      }
+
+      const wasEmpty = tracks.length === 0;
+      tracks.push(...newTracks);
+      buildShuffleOrder();
+      showDropzone(false);
+      renderTrackList();
+      if (wasEmpty) {
+        loadTrack(0);
+      }
+      showToast(`🎵 ${newTracks.length} canción${newTracks.length > 1 ? 'es' : ''} añadida${newTracks.length > 1 ? 's' : ''} a la biblioteca local`);
+    };
+
+    const removeTrack = (idx) => {
+      if (idx < 0 || idx >= tracks.length) return;
+      URL.revokeObjectURL(tracks[idx].url);
+      tracks.splice(idx, 1);
+      if (tracks.length === 0) {
+        pause();
+        currentIdx = -1;
+        showDropzone(true);
+      } else if (idx === currentIdx) {
+        currentIdx = Math.min(currentIdx, tracks.length - 1);
+        loadTrack(currentIdx);
+        if (isPlaying) play();
+      } else if (idx < currentIdx) {
+        currentIdx--;
+      }
+      buildShuffleOrder();
+      renderTrackList();
+      updateTrackUI();
+    };
+
+    const clearAll = () => {
+      pause();
+      tracks.forEach((t) => URL.revokeObjectURL(t.url));
+      tracks = [];
+      currentIdx = -1;
+      shuffleOrder = [];
+      showDropzone(true);
+      renderTrackList();
+      updateTrackUI();
+      showToast('🗑 Lista de música local vaciada');
+    };
+
+    const buildUI = () => {
+      if (document.getElementById('amphion-local-player')) {
+        uiReady = true;
+        return;
+      }
+
+      const overlay = document.createElement('div');
+      overlay.id = 'amphion-local-player';
+      overlay.innerHTML = `
+        <div id="amphion-lp-header">
+          <h2>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="#1ed760">
+              <path d="M12 3a9 9 0 100 18A9 9 0 0012 3zm4.26 12.95a.56.56 0 01-.77.19c-2.12-1.3-4.79-1.59-7.94-.87a.56.56 0 01-.25-1.09c3.44-.79 6.4-.45 8.77 1.01.27.16.35.5.19.76zm1.14-2.54a.7.7 0 01-.96.23c-2.42-1.49-6.11-1.92-8.97-1.05a.7.7 0 01-.41-1.34c3.27-.99 7.33-.51 10.11 1.2.33.2.44.63.23.96zm.1-2.65c-2.9-1.72-7.69-1.88-10.46-1.04a.84.84 0 11-.49-1.61c3.17-.96 8.44-.78 11.77 1.21a.84.84 0 11-.82 1.44z"/>
+            </svg>
+            Reproductor de Música Descargada · Local
+          </h2>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <label id="amphion-lp-add-label" style="background:#1ed760;border:none;border-radius:500px;padding:7px 16px;font-size:12px;font-weight:800;color:#121212;cursor:pointer;transition:transform 0.12s,background 0.12s;" title="Añadir canciones descargadas">
+              + Añadir archivos
+              <input id="amphion-lp-file-input" type="file" multiple accept="audio/*,.mp3,.flac,.ogg,.wav,.aac,.m4a,.opus,.wma" style="display:none;">
+            </label>
+            <button id="amphion-lp-close" title="Cerrar reproductor local">✕</button>
+          </div>
+        </div>
+        <div id="amphion-lp-body">
+          <!-- Sidebar: Arte + Metadata + Controles de audio -->
+          <div id="amphion-lp-sidebar">
+            <div id="amphion-lp-cover">🎵</div>
+            <div id="amphion-lp-info">
+              <div id="amphion-lp-title">Sin reproducción</div>
+              <div id="amphion-lp-subtitle">Selecciona o arrastra una pista</div>
+            </div>
+            <div id="amphion-lp-progress-wrap">
+              <div id="amphion-lp-progress-bar">
+                <div id="amphion-lp-progress-fill"></div>
+              </div>
+              <div id="amphion-lp-times">
+                <span id="amphion-lp-time-cur">0:00</span>
+                <span id="amphion-lp-time-dur">0:00</span>
+              </div>
+            </div>
+            <div id="amphion-lp-controls">
+              <button class="amphion-lp-btn" id="amphion-lp-shuffle" title="Reproducción aleatoria">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+                  <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+                  <line x1="4" y1="4" x2="9" y2="9"/>
+                </svg>
+              </button>
+              <button class="amphion-lp-btn" id="amphion-lp-prev" title="Pista anterior">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M6 6h2v12H6V6zm10 0L10 12l6 6V6z"/>
+                </svg>
+              </button>
+              <button id="amphion-lp-playpause" title="Reproducir / Pausar">▶</button>
+              <button class="amphion-lp-btn" id="amphion-lp-next" title="Pista siguiente">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M16 6h2v12h-2V6zM4 18l6-6-6-6v12z"/>
+                </svg>
+              </button>
+              <button class="amphion-lp-btn" id="amphion-lp-repeat" title="Repetir">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/>
+                  <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
+                </svg>
+              </button>
+            </div>
+            <div id="amphion-lp-volume-wrap">
+              <span id="amphion-lp-vol-icon" title="Silenciar">🔊</span>
+              <input id="amphion-lp-volume" type="range" min="0" max="1" step="0.02" value="0.85">
+            </div>
+          </div>
+          <!-- Panel derecho: Lista de pistas descargadas / Dropzone -->
+          <div style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+            <div id="amphion-lp-list-header">
+              <span id="amphion-lp-count">0 canciones</span>
+              <button id="amphion-lp-clear-btn" title="Vaciar toda la lista">Vaciar lista</button>
+            </div>
+            <div id="amphion-lp-tracklist">
+              <div id="amphion-lp-dropzone">
+                <div id="amphion-lp-dropzone-icon">🎵</div>
+                <h3>Arrastra y suelta tu música aquí</h3>
+                <p>Compatible con archivos MP3 descargados de SpotDown, SoundLoaders, SpotMate, FLAC, WAV, M4A</p>
+                <button id="amphion-lp-pick-btn">Explorar archivos de mi PC</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      // Eventos
+      overlay.querySelector('#amphion-lp-close').onclick = () => close();
+      overlay.querySelector('#amphion-lp-playpause').onclick = () => toggle();
+      overlay.querySelector('#amphion-lp-prev').onclick = () => prevTrack();
+      overlay.querySelector('#amphion-lp-next').onclick = () => nextTrack();
+
+      overlay.querySelector('#amphion-lp-shuffle').onclick = (e) => {
+        isShuffle = !isShuffle;
+        if (isShuffle) buildShuffleOrder();
+        e.currentTarget.classList.toggle('active', isShuffle);
+        showToast(isShuffle ? '🔀 Aleatorio activado en local' : 'Aleatorio desactivado en local');
+      };
+
+      overlay.querySelector('#amphion-lp-repeat').onclick = (e) => {
+        repeatMode = (repeatMode + 1) % 3;
+        const labels = ['desactivado', 'todas', 'una sola pista'];
+        e.currentTarget.classList.toggle('active', repeatMode > 0);
+        e.currentTarget.title = `Repetir: ${labels[repeatMode]}`;
+        if (repeatMode === 2) {
+          e.currentTarget.innerHTML = `<span style="font-size:12px;font-weight:800;">1</span>`;
+        } else {
+          e.currentTarget.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>`;
+        }
+        showToast(`🔁 Repetición: ${labels[repeatMode]}`);
+      };
+
+      overlay.querySelector('#amphion-lp-progress-bar').onclick = (e) => {
+        const bar = e.currentTarget;
+        const pct = e.offsetX / bar.offsetWidth;
+        const a = getAudio();
+        if (a.duration) a.currentTime = pct * a.duration;
+      };
+
+      overlay.querySelector('#amphion-lp-volume').oninput = (e) => {
+        const val = parseFloat(e.target.value);
+        getAudio().volume = val;
+        const vol = overlay.querySelector('#amphion-lp-vol-icon');
+        if (vol) vol.textContent = val === 0 ? '🔇' : val < 0.4 ? '🔉' : '🔊';
+      };
+      overlay.querySelector('#amphion-lp-vol-icon').onclick = () => {
+        const a = getAudio();
+        const inp = overlay.querySelector('#amphion-lp-volume');
+        if (a.volume > 0) {
+          a.volume = 0;
+          inp.value = 0;
+          overlay.querySelector('#amphion-lp-vol-icon').textContent = '🔇';
+        } else {
+          a.volume = 0.85;
+          inp.value = 0.85;
+          overlay.querySelector('#amphion-lp-vol-icon').textContent = '🔊';
+        }
+      };
+
+      const fileInput = overlay.querySelector('#amphion-lp-file-input');
+      fileInput.onchange = () => {
+        addFiles(fileInput.files);
+        fileInput.value = '';
+      };
+      overlay.querySelector('#amphion-lp-pick-btn').onclick = () => fileInput.click();
+
+      overlay.querySelector('#amphion-lp-clear-btn').onclick = () => {
+        if (tracks.length === 0) return;
+        clearAll();
+      };
+
+      // Drag & Drop
+      const tracklist = overlay.querySelector('#amphion-lp-tracklist');
+      const dropzone = overlay.querySelector('#amphion-lp-dropzone');
+      ['dragover', 'dragenter'].forEach((evt) => {
+        tracklist.addEventListener(evt, (e) => {
+          e.preventDefault();
+          if (dropzone) dropzone.classList.add('drag-over');
+        });
+      });
+      ['dragleave', 'drop'].forEach((evt) => {
+        tracklist.addEventListener(evt, (e) => {
+          if (evt === 'drop') {
+            e.preventDefault();
+            addFiles(e.dataTransfer.files);
+          }
+          if (dropzone) dropzone.classList.remove('drag-over');
+        });
+      });
+
+      uiReady = true;
+    };
+
+    const showDropzone = (show) => {
+      const dz = document.getElementById('amphion-lp-dropzone');
+      if (dz) dz.style.display = show ? 'flex' : 'none';
+    };
+
+    const renderTrackList = () => {
+      const container = document.getElementById('amphion-lp-tracklist');
+      if (!container) return;
+
+      const count = document.getElementById('amphion-lp-count');
+      if (count) count.textContent = `${tracks.length} canción${tracks.length !== 1 ? 'es' : ''}`;
+
+      if (tracks.length === 0) {
+        showDropzone(true);
+        container.querySelectorAll('.amphion-lp-track').forEach((el) => el.remove());
+        return;
+      }
+      showDropzone(false);
+
+      container.querySelectorAll('.amphion-lp-track').forEach((el) => el.remove());
+
+      tracks.forEach((t, idx) => {
+        const row = document.createElement('div');
+        row.className = `amphion-lp-track${idx === currentIdx ? ' amphion-lp-active' : ''}`;
+        row.dataset.idx = idx;
+
+        const isActive = idx === currentIdx;
+        const numContent = isActive && isPlaying
+          ? `<div class="amphion-eq"><span></span><span></span><span></span></div>`
+          : `${idx + 1}`;
+
+        row.innerHTML = `
+          <div class="amphion-lp-track-num${isActive && isPlaying ? ' playing' : ''}">${numContent}</div>
+          <div class="amphion-lp-track-info">
+            <div class="amphion-lp-track-name">${t.name}</div>
+            <div class="amphion-lp-track-meta">${t.artist}</div>
+          </div>
+          <div class="amphion-lp-track-dur">${isFinite(t.duration) ? fmtTime(t.duration) : '—'}</div>
+          <button class="amphion-lp-track-remove" data-idx="${idx}" title="Quitar de la lista">✕</button>
+        `;
+
+        row.onclick = (e) => {
+          if (e.target.classList.contains('amphion-lp-track-remove')) return;
+          if (idx === currentIdx) toggle();
+          else play(idx);
+        };
+        row.querySelector('.amphion-lp-track-remove').onclick = (e) => {
+          e.stopPropagation();
+          removeTrack(Number(e.currentTarget.dataset.idx));
+        };
+
+        container.appendChild(row);
+      });
+    };
+
+    const updateTrackUI = () => {
+      if (!uiReady) return;
+      const t = currentIdx >= 0 ? tracks[currentIdx] : null;
+
+      const title = document.getElementById('amphion-lp-title');
+      const sub = document.getElementById('amphion-lp-subtitle');
+      if (title) title.textContent = t ? t.name : 'Sin reproducción';
+      if (sub) sub.textContent = t ? t.artist : 'Selecciona o arrastra una pista';
+
+      const durEl = document.getElementById('amphion-lp-time-dur');
+      if (durEl && t && isFinite(t.duration)) durEl.textContent = fmtTime(t.duration);
+
+      updateMiniPlayer(t);
+      renderTrackList();
+    };
+
+    const updatePlayUI = () => {
+      if (!uiReady) return;
+      const btn = document.getElementById('amphion-lp-playpause');
+      if (btn) btn.textContent = isPlaying ? '⏸' : '▶';
+
+      const cover = document.getElementById('amphion-lp-cover');
+      if (cover) cover.classList.toggle('playing', isPlaying);
+
+      const miniBtn = document.getElementById('amphion-lp-mini-play');
+      if (miniBtn) miniBtn.textContent = isPlaying ? '⏸' : '▶';
+
+      renderTrackList();
+
+      const mini = document.getElementById('amphion-lp-mini');
+      if (mini) {
+        const lp = document.getElementById('amphion-local-player');
+        const lpOpen = lp && lp.classList.contains('amphion-lp-open');
+        mini.style.display = isPlaying && !lpOpen ? 'block' : 'none';
+      }
+
+      const topBtn = document.getElementById('amphion-local-btn');
+      if (topBtn) topBtn.dataset.active = isPlaying ? 'true' : 'false';
+    };
+
+    const updateMiniPlayer = (t) => {
+      const mini = document.getElementById('amphion-lp-mini');
+      if (!mini) return;
+      mini.querySelector('.mini-title').textContent = t ? t.name : 'Sin reproducción local';
+      mini.querySelector('.mini-sub').textContent = t ? t.artist : 'Amphion Local Player';
+    };
+
+    const open = () => {
+      buildUI();
+      const overlay = document.getElementById('amphion-local-player');
+      if (!overlay) return;
+      overlay.classList.add('amphion-lp-open');
+
+      const mini = document.getElementById('amphion-lp-mini');
+      if (mini) mini.style.display = 'none';
+
+      const topBtn = document.getElementById('amphion-local-btn');
+      if (topBtn) topBtn.dataset.active = 'true';
+
+      renderTrackList();
+      updateTrackUI();
+      updatePlayUI();
+    };
+
+    const close = () => {
+      const overlay = document.getElementById('amphion-local-player');
+      if (!overlay) return;
+      overlay.classList.remove('amphion-lp-open');
+
+      const mini = document.getElementById('amphion-lp-mini');
+      if (mini) mini.style.display = isPlaying ? 'block' : 'none';
+
+      const topBtn = document.getElementById('amphion-local-btn');
+      if (topBtn) topBtn.dataset.active = isPlaying ? 'true' : 'false';
+    };
+
+    const toggle_ui = () => {
+      buildUI();
+      const overlay = document.getElementById('amphion-local-player');
+      if (overlay && overlay.classList.contains('amphion-lp-open')) {
+        close();
+      } else {
+        open();
+      }
+    };
+
+    const injectMiniPlayer = () => {
+      if (document.getElementById('amphion-lp-mini')) return;
+      const mini = document.createElement('div');
+      mini.id = 'amphion-lp-mini';
+      mini.innerHTML = `
+        <div class="mini-title">Sin reproducción local</div>
+        <div class="mini-sub">Amphion Local Player</div>
+        <div id="amphion-lp-mini-controls">
+          <button class="amphion-lp-mini-btn" id="amphion-lp-mini-prev" title="Pista anterior">⏮</button>
+          <button class="amphion-lp-mini-btn" id="amphion-lp-mini-play" title="Play/Pause">▶</button>
+          <button class="amphion-lp-mini-btn" id="amphion-lp-mini-next" title="Pista siguiente">⏭</button>
+          <div id="amphion-lp-mini-progress"><div id="amphion-lp-mini-fill"></div></div>
+          <button class="amphion-lp-mini-btn" id="amphion-lp-mini-open" title="Abrir reproductor local">⬆</button>
+        </div>
+      `;
+      document.body.appendChild(mini);
+      mini.querySelector('#amphion-lp-mini-play').onclick = (e) => {
+        e.stopPropagation();
+        toggle();
+      };
+      mini.querySelector('#amphion-lp-mini-prev').onclick = (e) => {
+        e.stopPropagation();
+        prevTrack();
+      };
+      mini.querySelector('#amphion-lp-mini-next').onclick = (e) => {
+        e.stopPropagation();
+        nextTrack();
+      };
+      mini.querySelector('#amphion-lp-mini-open').onclick = (e) => {
+        e.stopPropagation();
+        open();
+      };
+      mini.onclick = () => open();
+    };
+
+    return {
+      open,
+      close,
+      toggle: toggle_ui,
+      injectMiniPlayer,
+      addFiles,
+      play,
+      pause,
+      next: nextTrack,
+      prev: prevTrack,
+      isPlaying: () => isPlaying,
+      getTracks: () => [...tracks],
+      getCurrentTrack: () => (currentIdx >= 0 ? { ...tracks[currentIdx] } : null)
+    };
+  })();
+
   // 1. BOTÓN "Premium" Y BOTÓN "SpotDown" EN LA BARRA SUPERIOR
   const PREMIUM_LABEL = 'Amphion';
 
@@ -1121,6 +2036,26 @@
       };
     }
 
+    let localBtn = document.getElementById('amphion-local-btn');
+    if (!localBtn) {
+      localBtn = document.createElement('button');
+      localBtn.id = 'amphion-local-btn';
+      localBtn.className = 'amphion-premium-pill-btn amphion-local-btn';
+      localBtn.innerHTML = `
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" aria-hidden="true" style="margin-right:6px;">
+          <path d="M12 13c0 1.105-1.12 2-2.5 2S7 14.105 7 13s1.12-2 2.5-2 2.5.895 2.5 2z"/>
+          <path fill-rule="evenodd" d="M12 3v10h-1V3h1z"/>
+          <path d="M11 2.82a1 1 0 0 1 .804-.98l3-1A1 1 0 0 1 16 1.82V4.5a1 1 0 0 1-.724.962l-3.5 1A1 1 0 0 1 10.5 5.5v-2a1 1 0 0 1 .5-.68z"/>
+          <path d="M6 14.5c0 .828-.895 1.5-2 1.5s-2-.672-2-1.5.895-1.5 2-1.5 2 .672 2 1.5z"/>
+          <path fill-rule="evenodd" d="M6 5.5v9H5v-9h1z"/>
+        </svg><span>Música Local</span>`;
+      localBtn.title = "Reproductor de Música Descargada / Local (Alt+L)";
+      localBtn.onclick = (e) => {
+        e.stopPropagation();
+        LocalPlayer.toggle();
+      };
+    }
+
     // Anclaje estable junto al avatar del perfil.
     const userWidget = document.querySelector('[data-testid="user-widget-link"]');
     if (userWidget && userWidget.parentElement) {
@@ -1130,10 +2065,14 @@
       if (spotdownBtn.parentElement !== userWidget.parentElement) {
         userWidget.parentElement.insertBefore(spotdownBtn, btn);
       }
+      if (localBtn.parentElement !== userWidget.parentElement) {
+        userWidget.parentElement.insertBefore(localBtn, spotdownBtn);
+      }
     } else {
       const topBar = document.querySelector('[data-testid="topbar-content"]') ||
                      document.querySelector('[data-testid="global-nav-bar"]');
       if (topBar) {
+        if (!topBar.contains(localBtn)) topBar.appendChild(localBtn);
         if (!topBar.contains(spotdownBtn)) topBar.appendChild(spotdownBtn);
         if (!topBar.contains(btn)) topBar.appendChild(btn);
       }
@@ -1564,7 +2503,7 @@
           </button>
         </div>
         <!-- Card SpotMate -->
-        <div style="background: linear-gradient(135deg, rgba(167,139,250,0.15) 0%, rgba(24,24,24,0.95) 100%); border-radius: 12px; padding: 13px 15px; margin-bottom: 18px; border: 1.5px solid rgba(167,139,250,0.4); box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+        <div style="background: linear-gradient(135deg, rgba(167,139,250,0.15) 0%, rgba(24,24,24,0.95) 100%); border-radius: 12px; padding: 13px 15px; margin-bottom: 10px; border: 1.5px solid rgba(167,139,250,0.4); box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; justify-content: space-between; align-items: center; gap: 12px;">
           <div style="display: flex; align-items: center; gap: 12px;">
             <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(167,139,250,0.18); border: 1px solid rgba(167,139,250,0.5); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #a78bfa;">✦</div>
             <div>
@@ -1574,6 +2513,19 @@
           </div>
           <button id="amphion-modal-spotmate-btn" style="background: #a78bfa; color: #121212; border: none; border-radius: 500px; padding: 7px 15px; font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: transform 0.15s, background 0.15s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform=''">
             Abrir ↗
+          </button>
+        </div>
+        <!-- Card Reproductor Local de Música -->
+        <div style="background: linear-gradient(135deg, rgba(30,215,96,0.12) 0%, rgba(24,24,24,0.95) 100%); border-radius: 12px; padding: 13px 15px; margin-bottom: 18px; border: 1.5px solid rgba(30,215,96,0.35); box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(30,215,96,0.18); border: 1px solid rgba(30,215,96,0.5); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #1ed760;">🎵</div>
+            <div>
+              <div style="font-size: 14px; font-weight: 800; color: #1ed760;">Música Descargada / Local</div>
+              <div style="font-size: 11px; color: #b3b3b3; line-height: 1.4;">Escucha tus pistas sin conexión con estética Spotify (Alt+L)</div>
+            </div>
+          </div>
+          <button id="amphion-modal-local-btn" style="background: #1ed760; color: #121212; border: none; border-radius: 500px; padding: 7px 15px; font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: transform 0.15s, background 0.15s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform=''">
+            Abrir Reproductor ↗
           </button>
         </div>
 
@@ -1647,6 +2599,13 @@
     const modalSpotmateBtn = document.getElementById('amphion-modal-spotmate-btn');
     if (modalSpotmateBtn) {
       modalSpotmateBtn.onclick = () => openSpotDown(null, 'spotmate');
+    }
+    const modalLocalBtn = document.getElementById('amphion-modal-local-btn');
+    if (modalLocalBtn) {
+      modalLocalBtn.onclick = () => {
+        modalWrap.style.display = 'none';
+        LocalPlayer.open();
+      };
     }
   };
 
@@ -1734,6 +2693,7 @@
     injectNowPlayingSpotDownBtn();
     updateSpotDownBadge();
     injectTracklistContextMenu();
+    LocalPlayer.injectMiniPlayer();
     if (wallpaperData) markGlassSurfaces();
     const modal = document.getElementById('amphion-modal-backdrop');
     if (modal && modal.style.display !== 'none') refreshSettingsStatus();
@@ -1743,6 +2703,7 @@
   injectPremiumPill();
   updateActionBarToolbar();
   injectNowPlayingSpotDownBtn();
+  LocalPlayer.injectMiniPlayer();
   startAdGuard();
   try {
     applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || 'classic', true);
@@ -1762,12 +2723,33 @@
     }
   });
 
+  // Atajo de teclado global Alt+L → abrir / alternar Reproductor Local
+  document.addEventListener('keydown', (e) => {
+    if (e.altKey && (e.key === 'l' || e.key === 'L') && !e.target.matches('input, textarea, [contenteditable]')) {
+      e.preventDefault();
+      LocalPlayer.toggle();
+    }
+  });
+
   // Registro del objeto soberano en window para el Guard en Rust
   window.Amphion = {
     ready: true,
     version: VERSION,
     mode: "streaming_pure",
     openSettings: openModal,
+    localPlayer: {
+      open: LocalPlayer.open,
+      close: LocalPlayer.close,
+      toggle: LocalPlayer.toggle,
+      play: LocalPlayer.play,
+      pause: LocalPlayer.pause,
+      next: LocalPlayer.next,
+      prev: LocalPlayer.prev,
+      isPlaying: LocalPlayer.isPlaying,
+      getTracks: LocalPlayer.getTracks,
+      getCurrentTrack: LocalPlayer.getCurrentTrack,
+      addFiles: LocalPlayer.addFiles
+    },
     spotDown: {
       open: openSpotDown,
       getUrl: getSpotifyDownloadUrl,
