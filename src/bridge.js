@@ -558,6 +558,52 @@
       }
       #amphion-lp-list-header button:hover { color: #fff; border-color: #fff; }
 
+      /* Vista por carpetas */
+      .amphion-lp-folder-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px 6px;
+        cursor: pointer;
+        border-radius: 6px;
+        user-select: none;
+        transition: background 0.12s;
+        margin-top: 4px;
+      }
+      .amphion-lp-folder-header:hover { background: rgba(255,255,255,0.05); }
+      .amphion-lp-folder-chevron {
+        font-size: 9px;
+        color: #a7a7a7;
+        width: 10px;
+        flex-shrink: 0;
+      }
+      .amphion-lp-folder-name {
+        font-size: 11px;
+        font-weight: 700;
+        color: #b3b3b3;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .amphion-lp-folder-count {
+        font-size: 10px;
+        color: #535353;
+        font-weight: 600;
+        background: rgba(255,255,255,0.05);
+        padding: 1px 7px;
+        border-radius: 500px;
+        flex-shrink: 0;
+      }
+      .amphion-lp-folder-group {
+        padding-left: 10px;
+        border-left: 2px solid rgba(30,215,96,0.15);
+        margin-left: 16px;
+        margin-bottom: 4px;
+      }
+
       /* Ecualizador animado (pistas activas) */
       @keyframes amphion-eq-bar {
         0%, 100% { transform: scaleY(0.3); }
@@ -997,7 +1043,7 @@
     }
   };
 
-  const VERSION = '0.7.6';
+  const VERSION = '0.7.7';
 
   const THEME_STORAGE_KEY = 'amphion-theme';
   let activeTheme = 'classic';
@@ -1559,9 +1605,12 @@
 
     const cleanName = (filename) => {
       return filename
-        .replace(/\.[^.]+$/, '')           // quitar extensión
-        .replace(/^\d+[\s._-]+/, '')        // quitar número de pista si lo tiene
+        .replace(/\.[^.]+$/, '')                        // quitar extensión
+        .replace(/\s+[a-z0-9-]+\.[a-z]{2,4}$/i, '')   // quitar sufijo de dominio (spotdown.org, etc.)
+        .replace(/\s*(spotdown|soundloaders|spotmate|ytdlp|yt-dlp|www\.|http:|https:)[^\s]*/gi, '')
+        .replace(/^[\d]+[\s._\-:]+/, '')               // quitar número de pista
         .replace(/[_]/g, ' ')
+        .replace(/\s{2,}/g, ' ')
         .trim();
     };
 
@@ -1598,7 +1647,10 @@
       currentIdx = idx;
       const t = tracks[idx];
       const a = getAudio();
-      a.src = t.url;
+      a.pause();
+      a.src = '';
+      a.src = t.url;    // re-assign forces browser to pick up new blob URL
+      a.load();         // critical: re-initialize the media element
       updateTrackUI();
     };
 
@@ -2154,11 +2206,14 @@
       if (dz) dz.style.display = show ? 'flex' : 'none';
     };
 
+    // Track which folders are collapsed (folderKey -> bool)
+    const collapsedFolders = new Set();
+
     const renderTrackList = () => {
       const container = document.getElementById('amphion-lp-tracklist');
       if (!container) return;
 
-      const visible = searchFilter
+      const allVisible = searchFilter
         ? tracks
             .map((t, originalIdx) => ({ ...t, originalIdx }))
             .filter((t) =>
@@ -2170,57 +2225,102 @@
 
       const count = document.getElementById('amphion-lp-count');
       if (count) {
-        if (searchFilter) {
-          count.textContent = `${visible.length} de ${tracks.length} canciones`;
-        } else {
-          count.textContent = `${tracks.length} canción${tracks.length !== 1 ? 'es' : ''}${activeFolderName ? ' · ' + activeFolderName : ''}`;
-        }
+        count.textContent = searchFilter
+          ? `${allVisible.length} de ${tracks.length} canciones`
+          : `${tracks.length} canción${tracks.length !== 1 ? 'es' : ''}${activeFolderName ? ' · ' + activeFolderName : ''}`;
       }
 
       if (tracks.length === 0) {
         showDropzone(true);
-        container.querySelectorAll('.amphion-lp-track').forEach((el) => el.remove());
+        container.innerHTML = '';
         return;
       }
       showDropzone(false);
+      container.innerHTML = '';
 
-      container.querySelectorAll('.amphion-lp-track').forEach((el) => el.remove());
+      if (searchFilter) {
+        // En modo búsqueda: lista plana sin grupos
+        allVisible.forEach((t) => {
+          container.appendChild(buildTrackRow(t, t.originalIdx));
+        });
+        return;
+      }
 
-      visible.forEach((t) => {
-        const originalIdx = t.originalIdx;
-        const row = document.createElement('div');
-        row.className = `amphion-lp-track${originalIdx === currentIdx ? ' amphion-lp-active' : ''}`;
-        row.dataset.idx = originalIdx;
-
-        const isActive = originalIdx === currentIdx;
-        const numContent = isActive && isPlaying
-          ? `<div class="amphion-eq"><span></span><span></span><span></span></div>`
-          : `${originalIdx + 1}`;
-
-        const folderTag = t.folder ? `<span class="amphion-lp-track-folder">${t.folder}</span>` : '';
-
-        row.innerHTML = `
-          <div class="amphion-lp-track-num${isActive && isPlaying ? ' playing' : ''}">${numContent}</div>
-          <div class="amphion-lp-track-info">
-            <div class="amphion-lp-track-name">${t.name}</div>
-            <div class="amphion-lp-track-meta">${t.artist}${folderTag}</div>
-          </div>
-          <div class="amphion-lp-track-dur">${isFinite(t.duration) ? fmtTime(t.duration) : '—'}</div>
-          <button class="amphion-lp-track-remove" data-idx="${originalIdx}" title="Quitar de la lista">✕</button>
-        `;
-
-        row.onclick = (e) => {
-          if (e.target.classList.contains('amphion-lp-track-remove')) return;
-          if (originalIdx === currentIdx) toggle();
-          else play(originalIdx);
-        };
-        row.querySelector('.amphion-lp-track-remove').onclick = (e) => {
-          e.stopPropagation();
-          removeTrack(Number(e.currentTarget.dataset.idx));
-        };
-
-        container.appendChild(row);
+      // Agrupar por carpeta
+      const folderMap = new Map();
+      allVisible.forEach((t) => {
+        const folderKey = t.folder || '📁 Sin carpeta';
+        if (!folderMap.has(folderKey)) folderMap.set(folderKey, []);
+        folderMap.get(folderKey).push(t);
       });
+
+      folderMap.forEach((items, folderKey) => {
+        const isCollapsed = collapsedFolders.has(folderKey);
+
+        // Header de carpeta
+        const header = document.createElement('div');
+        header.className = 'amphion-lp-folder-header';
+        header.dataset.folder = folderKey;
+        const shortFolder = folderKey.replace(/^MY MUSIC\//, '').replace(/^MY MUSIC/, 'MY MUSIC');
+        header.innerHTML = `
+          <span class="amphion-lp-folder-chevron">${isCollapsed ? '▶' : '▼'}</span>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="#a7a7a7" style="flex-shrink:0">
+            <path d="M20 6h-8l-2-2H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2z"/>
+          </svg>
+          <span class="amphion-lp-folder-name" title="${folderKey}">${shortFolder}</span>
+          <span class="amphion-lp-folder-count">${items.length}</span>
+        `;
+        header.onclick = () => {
+          if (collapsedFolders.has(folderKey)) {
+            collapsedFolders.delete(folderKey);
+          } else {
+            collapsedFolders.add(folderKey);
+          }
+          renderTrackList();
+        };
+        container.appendChild(header);
+
+        if (!isCollapsed) {
+          const group = document.createElement('div');
+          group.className = 'amphion-lp-folder-group';
+          items.forEach((t) => {
+            group.appendChild(buildTrackRow(t, t.originalIdx));
+          });
+          container.appendChild(group);
+        }
+      });
+    };
+
+    const buildTrackRow = (t, originalIdx) => {
+      const row = document.createElement('div');
+      row.className = `amphion-lp-track${originalIdx === currentIdx ? ' amphion-lp-active' : ''}`;
+      row.dataset.idx = originalIdx;
+
+      const isActive = originalIdx === currentIdx;
+      const numContent = isActive && isPlaying
+        ? `<div class="amphion-eq"><span></span><span></span><span></span></div>`
+        : `${originalIdx + 1}`;
+
+      row.innerHTML = `
+        <div class="amphion-lp-track-num${isActive && isPlaying ? ' playing' : ''}">${numContent}</div>
+        <div class="amphion-lp-track-info">
+          <div class="amphion-lp-track-name">${t.name}</div>
+          <div class="amphion-lp-track-meta">${t.artist || 'Música local'}</div>
+        </div>
+        <div class="amphion-lp-track-dur">${isFinite(t.duration) ? fmtTime(t.duration) : '—'}</div>
+        <button class="amphion-lp-track-remove" data-idx="${originalIdx}" title="Quitar de la lista">✕</button>
+      `;
+
+      row.onclick = (e) => {
+        if (e.target.classList.contains('amphion-lp-track-remove')) return;
+        if (originalIdx === currentIdx) toggle();
+        else play(originalIdx);
+      };
+      row.querySelector('.amphion-lp-track-remove').onclick = (e) => {
+        e.stopPropagation();
+        removeTrack(Number(e.currentTarget.dataset.idx));
+      };
+      return row;
     };
 
     const updateTrackUI = () => {

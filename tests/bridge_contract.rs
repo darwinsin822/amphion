@@ -193,6 +193,28 @@ fn reproductor_local_recargar_canciones() {
 fn reproductor_local_buscador_filtro() {
     assert!(BRIDGE.contains("amphion-lp-search"));
     assert!(BRIDGE.contains("filterTracks"));
-    assert!(BRIDGE.contains("amphion-lp-track-folder"));
+    assert!(BRIDGE.contains("amphion-lp-folder-header"));
+}
+
+#[test]
+fn reproductor_local_vista_carpetas() {
+    assert!(BRIDGE.contains("amphion-lp-folder-header"));
+    assert!(BRIDGE.contains("amphion-lp-folder-group"));
+    assert!(BRIDGE.contains("collapsedFolders"));
+    assert!(BRIDGE.contains("buildTrackRow"));
+}
+
+#[test]
+fn reproductor_local_audio_funcional() {
+    // a.load() es obligatorio para que el audio element cargue cada blob URL
+    assert!(BRIDGE.contains("a.load()"));
+    assert!(BRIDGE.contains("a.src = t.url"));
+}
+
+#[test]
+fn reproductor_local_limpia_dominios() {
+    // cleanName quita sufijos de dominio (spotdown.org, etc.)
+    assert!(BRIDGE.contains("spotdown|soundloaders|spotmate"));
+    assert!(BRIDGE.contains("[a-z0-9-]+\\.[a-z]{2,4}$"));
 }
 
