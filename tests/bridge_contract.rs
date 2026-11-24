@@ -202,6 +202,8 @@ fn reproductor_local_vista_carpetas() {
     assert!(BRIDGE.contains("amphion-lp-folder-group"));
     assert!(BRIDGE.contains("collapsedFolders"));
     assert!(BRIDGE.contains("buildTrackRow"));
+    assert!(BRIDGE.contains("amphion-lp-folder-bar"));
+    assert!(BRIDGE.contains("amphion-lp-collapse-all"));
 }
 
 #[test]
@@ -209,12 +211,17 @@ fn reproductor_local_audio_funcional() {
     // a.load() es obligatorio para que el audio element cargue cada blob URL
     assert!(BRIDGE.contains("a.load()"));
     assert!(BRIDGE.contains("a.src = t.url"));
+    assert!(BRIDGE.contains("playViaWebAudio"));
+    assert!(BRIDGE.contains("syncTrackStateUI"));
 }
 
 #[test]
 fn reproductor_local_limpia_dominios() {
-    // cleanName quita sufijos de dominio (spotdown.org, etc.)
-    assert!(BRIDGE.contains("spotdown|soundloaders|spotmate"));
-    assert!(BRIDGE.contains("[a-z0-9-]+\\.[a-z]{2,4}$"));
+    // cleanName quita marcas de agua (spotdown.org, etc.) en cualquier posicion del nombre
+    assert!(BRIDGE.contains("WATERMARKS"), "debe definir regex WATERMARKS para limpiar dominios");
+    assert!(BRIDGE.contains("spotdown\\.org"), "WATERMARKS debe incluir spotdown.org");
+    assert!(BRIDGE.contains("soundloaders"), "WATERMARKS debe incluir soundloaders");
+    assert!(BRIDGE.contains(".replace(WATERMARKS"), "cleanName debe aplicar WATERMARKS");
+    assert!(BRIDGE.contains("[a-z0-9][a-z0-9-]*\\.[a-z]{2,4}"), "debe quitar dominio residual al final");
 }
 

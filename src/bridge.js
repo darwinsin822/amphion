@@ -1,4 +1,4 @@
-// Amphion Bridge v0.7.5 - Spotify Web Player Controller, Local Player & Pure Streaming Engine
+// Amphion Bridge v0.7.8 - Spotify Web Player Controller, Local Player & Pure Streaming Engine
 // Diseñado para Linux Mint Cinnamon con arquitectura de máximo rendimiento (Zero Downloads)
 
 (() => {
@@ -215,8 +215,11 @@
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(0,0,0,0.88);
-        backdrop-filter: blur(18px);
+        background:
+          radial-gradient(circle at 14% 18%, rgba(30,215,96,0.14) 0%, transparent 45%),
+          radial-gradient(circle at 86% 82%, rgba(29,185,84,0.08) 0%, transparent 45%),
+          rgba(12,12,14,0.95);
+        backdrop-filter: blur(22px);
         z-index: 10000020;
         font-family: CircularSp, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         color: #ffffff;
@@ -229,8 +232,9 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 18px 24px 14px;
+        padding: 16px 24px 14px;
         border-bottom: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.02);
         flex-shrink: 0;
       }
       #amphion-lp-folder-btn {
@@ -362,30 +366,50 @@
 
       /* Panel izquierdo: cover art + info actual */
       #amphion-lp-sidebar {
-        width: 280px;
-        min-width: 220px;
+        width: 300px;
+        min-width: 240px;
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 24px 20px;
-        border-right: 1px solid rgba(255,255,255,0.07);
-        gap: 16px;
+        padding: 28px 24px;
+        border-right: 1px solid rgba(255,255,255,0.06);
+        background: rgba(0,0,0,0.2);
+        gap: 18px;
         flex-shrink: 0;
       }
       #amphion-lp-cover {
-        width: 200px; height: 200px;
-        border-radius: 8px;
-        background: linear-gradient(135deg, #282828 0%, #181818 100%);
+        width: 210px; height: 210px;
+        border-radius: 14px;
+        background: radial-gradient(circle at 30% 25%, #2b2b30 0%, #161618 70%, #0f0f11 100%);
+        border: 1px solid rgba(255,255,255,0.09);
         display: flex; align-items: center; justify-content: center;
         font-size: 72px;
-        box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.65);
         overflow: hidden;
         flex-shrink: 0;
-        transition: box-shadow 0.3s ease;
+        position: relative;
+        transition: box-shadow 0.3s ease, border-color 0.3s ease;
       }
       #amphion-lp-cover.playing {
-        box-shadow: 0 16px 48px rgba(30,215,96,0.25);
+        border-color: rgba(30,215,96,0.4);
+        box-shadow: 0 20px 56px rgba(30,215,96,0.28);
         animation: amphion-lp-cover-pulse 3s ease-in-out infinite;
+      }
+      #amphion-lp-folder-badge {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 3px 10px;
+        border-radius: 500px;
+        background: rgba(30,215,96,0.12);
+        border: 1px solid rgba(30,215,96,0.28);
+        color: #1ed760;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       @keyframes amphion-lp-cover-pulse {
         0%, 100% { box-shadow: 0 16px 48px rgba(30,215,96,0.2); }
@@ -472,7 +496,8 @@
 
       /* Panel derecho: lista de pistas */
       #amphion-lp-tracklist {
-        flex: 1; overflow-y: auto; padding: 12px 8px;
+        flex: 1; overflow-y: auto; padding: 12px 10px;
+        background: rgba(0,0,0,0.15);
       }
       #amphion-lp-tracklist::-webkit-scrollbar { width: 8px; }
       #amphion-lp-tracklist::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 4px; }
@@ -508,100 +533,183 @@
 
       /* Fila de pista */
       .amphion-lp-track {
-        display: flex; align-items: center; gap: 10px;
-        padding: 7px 10px; border-radius: 6px;
+        display: flex; align-items: center; gap: 12px;
+        padding: 8px 12px; border-radius: 8px;
         cursor: pointer;
-        transition: background 0.12s;
-        margin-bottom: 2px;
+        transition: background 0.12s, border-color 0.12s;
+        margin-bottom: 1px;
+        border: 1px solid transparent;
       }
-      .amphion-lp-track:hover { background: rgba(255,255,255,0.08); }
-      .amphion-lp-track.amphion-lp-active { background: rgba(30,215,96,0.12); }
+      .amphion-lp-track:hover {
+        background: rgba(255,255,255,0.07);
+        border-color: rgba(255,255,255,0.05);
+      }
+      .amphion-lp-track.amphion-lp-active {
+        background: rgba(30,215,96,0.1);
+        border-color: rgba(30,215,96,0.2);
+      }
       .amphion-lp-track.amphion-lp-active .amphion-lp-track-name { color: #1ed760; }
       .amphion-lp-track-num {
-        width: 24px; min-width: 24px; text-align: right;
-        font-size: 12px; color: #a7a7a7; font-variant-numeric: tabular-nums;
+        width: 28px; min-width: 28px; text-align: right;
+        font-size: 12px; color: #535353; font-variant-numeric: tabular-nums;
+        flex-shrink: 0;
       }
-      .amphion-lp-track-num.playing::before { content: '▶'; font-size: 10px; }
-      .amphion-lp-track-info { flex: 1; overflow: hidden; }
+      .amphion-lp-track.amphion-lp-active .amphion-lp-track-num { color: #1ed760; }
+      .amphion-lp-track-num.playing::before { content: ''; font-size: 10px; }
+      .amphion-lp-track-info { flex: 1; overflow: hidden; min-width: 0; }
       .amphion-lp-track-name {
-        font-size: 13px; font-weight: 600; color: #ffffff;
+        font-size: 13px; font-weight: 600; color: #e8e8e8;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        line-height: 1.3;
       }
       .amphion-lp-track-meta {
-        font-size: 11px; color: #a7a7a7;
+        font-size: 11px; color: #727272;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        margin-top: 1px;
+        margin-top: 2px; line-height: 1.2;
       }
       .amphion-lp-track-dur {
-        font-size: 12px; color: #a7a7a7;
+        font-size: 11px; color: #727272;
         font-variant-numeric: tabular-nums; flex-shrink: 0;
+        letter-spacing: 0.5px;
       }
+      .amphion-lp-track.amphion-lp-active .amphion-lp-track-dur { color: #1ed760; opacity: 0.7; }
       .amphion-lp-track-remove {
-        font-size: 14px; color: #535353; background: none; border: none;
-        cursor: pointer; padding: 2px 4px; border-radius: 4px;
-        opacity: 0; transition: opacity 0.1s, color 0.1s; flex-shrink: 0;
+        font-size: 13px; color: #535353; background: none; border: none;
+        cursor: pointer; padding: 3px 5px; border-radius: 50%;
+        opacity: 0; transition: opacity 0.1s, color 0.1s, background 0.1s; flex-shrink: 0;
       }
       .amphion-lp-track:hover .amphion-lp-track-remove { opacity: 1; }
-      .amphion-lp-track-remove:hover { color: #ff4040; }
+      .amphion-lp-track-remove:hover { color: #ff4040; background: rgba(255,64,64,0.1); }
 
-      /* Header de la lista */
+      /* Header de la lista y barra de carpetas */
       #amphion-lp-list-header {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 8px 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.07);
-        margin-bottom: 4px; flex-shrink: 0;
+        padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.07);
+        background: rgba(255,255,255,0.02); flex-shrink: 0; gap: 10px;
       }
-      #amphion-lp-list-header span { font-size: 12px; color: #a7a7a7; }
+      #amphion-lp-list-header span { font-size: 12px; color: #a7a7a7; white-space: nowrap; }
       #amphion-lp-list-header button {
-        background: none; border: 1px solid #3a3a3a; color: #b3b3b3;
+        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.14); color: #d4d4d4;
         font-size: 11px; font-weight: 700; border-radius: 500px;
-        padding: 3px 10px; cursor: pointer; transition: color 0.1s, border-color 0.1s;
+        padding: 4px 12px; cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s;
+        white-space: nowrap;
       }
-      #amphion-lp-list-header button:hover { color: #fff; border-color: #fff; }
+      #amphion-lp-list-header button:hover { color: #fff; border-color: rgba(255,255,255,0.45); background: rgba(255,255,255,0.1); }
+
+      #amphion-lp-folder-bar {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        background: rgba(0,0,0,0.22);
+        overflow-x: auto;
+        flex-shrink: 0;
+        scrollbar-width: thin;
+      }
+      #amphion-lp-folder-bar::-webkit-scrollbar { height: 4px; }
+      #amphion-lp-folder-bar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 2px; }
+      .amphion-lp-folder-chip {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #c7c7c7;
+        border-radius: 500px;
+        padding: 4px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+      }
+      .amphion-lp-folder-chip:hover {
+        background: rgba(255,255,255,0.13);
+        color: #fff;
+      }
+      .amphion-lp-folder-chip.selected {
+        background: #1ed760;
+        border-color: #1ed760;
+        color: #121212;
+        font-weight: 800;
+      }
 
       /* Vista por carpetas */
       .amphion-lp-folder-header {
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 10px 12px 6px;
+        gap: 10px;
+        padding: 10px 14px;
         cursor: pointer;
-        border-radius: 6px;
+        border-radius: 10px;
         user-select: none;
-        transition: background 0.12s;
-        margin-top: 4px;
+        transition: background 0.15s, border-color 0.15s;
+        margin-top: 8px;
+        background: linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+        border: 1px solid rgba(255,255,255,0.06);
       }
-      .amphion-lp-folder-header:hover { background: rgba(255,255,255,0.05); }
+      .amphion-lp-folder-header:hover {
+        background: rgba(255,255,255,0.08);
+        border-color: rgba(30,215,96,0.28);
+      }
+      .amphion-lp-folder-header.active-folder {
+        border-color: rgba(30,215,96,0.4);
+        background: linear-gradient(90deg, rgba(30,215,96,0.12) 0%, rgba(255,255,255,0.03) 100%);
+      }
       .amphion-lp-folder-chevron {
-        font-size: 9px;
-        color: #a7a7a7;
-        width: 10px;
+        font-size: 10px;
+        color: #1ed760;
+        width: 12px;
         flex-shrink: 0;
+        transition: transform 0.15s;
       }
       .amphion-lp-folder-name {
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
-        color: #b3b3b3;
-        letter-spacing: 0.5px;
+        color: #f0f0f0;
+        letter-spacing: 0.6px;
         text-transform: uppercase;
         flex: 1;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      .amphion-lp-folder-play {
+        background: rgba(30,215,96,0.15);
+        border: 1px solid rgba(30,215,96,0.35);
+        color: #1ed760;
+        font-size: 10px;
+        font-weight: 800;
+        padding: 3px 10px;
+        border-radius: 500px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.15s, background 0.15s, color 0.15s;
+        flex-shrink: 0;
+      }
+      .amphion-lp-folder-header:hover .amphion-lp-folder-play,
+      .amphion-lp-folder-header.active-folder .amphion-lp-folder-play {
+        opacity: 1;
+      }
+      .amphion-lp-folder-play:hover {
+        background: #1ed760;
+        color: #121212;
+      }
       .amphion-lp-folder-count {
         font-size: 10px;
-        color: #535353;
-        font-weight: 600;
-        background: rgba(255,255,255,0.05);
-        padding: 1px 7px;
+        color: #1ed760;
+        font-weight: 700;
+        background: rgba(30,215,96,0.12);
+        border: 1px solid rgba(30,215,96,0.25);
+        padding: 2px 9px;
         border-radius: 500px;
         flex-shrink: 0;
       }
       .amphion-lp-folder-group {
         padding-left: 10px;
-        border-left: 2px solid rgba(30,215,96,0.15);
-        margin-left: 16px;
-        margin-bottom: 4px;
+        border-left: 2px solid rgba(30,215,96,0.22);
+        margin-left: 18px;
+        margin-bottom: 6px;
+        margin-top: 4px;
       }
 
       /* Ecualizador animado (pistas activas) */
@@ -1043,7 +1151,7 @@
     }
   };
 
-  const VERSION = '0.7.7';
+  const VERSION = '0.7.8';
 
   const THEME_STORAGE_KEY = 'amphion-theme';
   let activeTheme = 'classic';
@@ -1557,11 +1665,25 @@
     let shuffleOrder = [];
     let audio = null;
     let uiReady = false;
+    let playSession = 0;
+
+    // Web Audio API fallback por si HTMLAudioElement falla en alguna pista
+    let waCtx = null;
+    let waSource = null;
+    let waGain = null;
+    let waBuffer = null;
+    let waStartTime = 0;
+    let waOffset = 0;
+    let waTimer = null;
+    let usingWebAudio = false;
 
     // Estado de detección automática de carpetas de música
     let activeDirectoryHandle = null;
     let activeFolderName = '~/Música';
     let searchFilter = '';
+    let selectedFolder = '';  // '' = todas las carpetas
+    let metaProbeToken = 0;
+    let metaAudio = null;
 
     // Persistencia de directorio de música en IndexedDB
     const openDb = () => new Promise((resolve, reject) => {
@@ -1596,6 +1718,10 @@
     };
 
     // Utilidades
+    const esc = (str) => String(str || '').replace(/[&<>"']/g, (ch) => (
+      ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch === '"' ? '&quot;' : '&#39;'
+    ));
+
     const fmtTime = (sec) => {
       if (!isFinite(sec) || isNaN(sec) || sec < 0) return '0:00';
       const m = Math.floor(sec / 60);
@@ -1604,23 +1730,32 @@
     };
 
     const cleanName = (filename) => {
+      // Elimina marcas de agua de servicios de descarga en CUALQUIER posicion del nombre
+      const WATERMARKS = /\b(spotdown\.org|spotdown|soundloaders?\.com|soundloaders?|spotmate\.net|spotmate|ytdlp|yt\-dlp|snappea|mp3juices?|y2mate|9xbuddy|tubidy|savefrom)\b/gi;
       return filename
-        .replace(/\.[^.]+$/, '')                        // quitar extensión
-        .replace(/\s+[a-z0-9-]+\.[a-z]{2,4}$/i, '')   // quitar sufijo de dominio (spotdown.org, etc.)
-        .replace(/\s*(spotdown|soundloaders|spotmate|ytdlp|yt-dlp|www\.|http:|https:)[^\s]*/gi, '')
-        .replace(/^[\d]+[\s._\-:]+/, '')               // quitar número de pista
-        .replace(/[_]/g, ' ')
+        .replace(/\.[^.]+$/, '')                               // quitar extension
+        .replace(/[_]/g, ' ')                                  // convertir guiones bajos antes de limpiar marcas
+        .replace(WATERMARKS, '')                               // quitar marcas de agua en cualquier posicion
+        .replace(/\s+[a-z0-9][a-z0-9-]*\.[a-z]{2,4}\s*$/i, '') // quitar dominio residual al final
+        .replace(/^[\d]+([\s._\-:]+)/, '')                     // quitar numero de pista al inicio
+        .replace(/\(\s*\)/g, '')                               // quitar parentesis vacios
+        .replace(/\[\s*\]/g, '')                               // quitar corchetes vacios
         .replace(/\s{2,}/g, ' ')
         .trim();
     };
 
     const guessArtistAndTitle = (filename) => {
-      const base = filename.replace(/\.[^.]+$/, '');
-      const match = base.match(/^(.+?)[\s]*[-–—][\s]*(.+)$/);
+      const cleaned = cleanName(filename);
+      const match = cleaned.match(/^(.+?)\s+[-–—]\s+(.+)$/);
       if (match) {
         return { artist: match[1].trim(), title: match[2].trim() };
       }
-      return { artist: 'Música local', title: cleanName(filename) };
+      return { artist: 'Música local', title: cleaned || filename.replace(/\.[^.]+$/, '') };
+    };
+
+    const shortFolderLabel = (folderKey) => {
+      if (!folderKey) return 'Sin carpeta';
+      return folderKey.replace(/^MY MUSIC\//i, '').replace(/^Música\//i, '');
     };
 
     const buildShuffleOrder = () => {
@@ -1631,26 +1766,141 @@
       }
     };
 
+    const stopWebAudio = () => {
+      usingWebAudio = false;
+      if (waTimer) {
+        clearInterval(waTimer);
+        waTimer = null;
+      }
+      if (waSource) {
+        try {
+          waSource.onended = null;
+          waSource.stop();
+          waSource.disconnect();
+        } catch (e) {}
+        waSource = null;
+      }
+    };
+
+    const updateProgressUI = (curSec, durSec) => {
+      const pct = durSec > 0 && isFinite(durSec) ? Math.min(100, (curSec / durSec) * 100) : 0;
+      const fill = document.getElementById('amphion-lp-progress-fill');
+      if (fill) fill.style.width = `${pct}%`;
+      const cur = document.getElementById('amphion-lp-time-cur');
+      if (cur) cur.textContent = fmtTime(curSec);
+      const miniFill = document.getElementById('amphion-lp-mini-fill');
+      if (miniFill) miniFill.style.width = `${pct}%`;
+    };
+
+    const startWebAudioNode = (offsetSec) => {
+      if (!waCtx || !waBuffer) return;
+      stopWebAudio();
+      usingWebAudio = true;
+      waOffset = Math.max(0, Math.min(offsetSec || 0, waBuffer.duration || 0));
+      const src = waCtx.createBufferSource();
+      src.buffer = waBuffer;
+      if (!waGain) {
+        waGain = waCtx.createGain();
+        waGain.connect(waCtx.destination);
+      }
+      waGain.gain.value = audio ? audio.volume : 0.85;
+      src.connect(waGain);
+      const sessionSnapshot = playSession;
+      src.onended = () => {
+        if (!usingWebAudio || sessionSnapshot !== playSession || !isPlaying) return;
+        const elapsed = waCtx.currentTime - waStartTime + waOffset;
+        if (elapsed >= (waBuffer.duration - 0.35)) {
+          nextTrack();
+        }
+      };
+      waStartTime = waCtx.currentTime;
+      src.start(0, waOffset);
+      waSource = src;
+      waTimer = setInterval(() => {
+        if (!usingWebAudio || !waCtx || !waBuffer || !isPlaying) return;
+        const pos = Math.min(waBuffer.duration, (waCtx.currentTime - waStartTime) + waOffset);
+        updateProgressUI(pos, waBuffer.duration);
+      }, 250);
+    };
+
+    const playViaWebAudio = async (track, sessionSnapshot) => {
+      if (!track || !track.file) return false;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return false;
+        if (!waCtx) waCtx = new AudioCtx();
+        if (waCtx.state === 'suspended') await waCtx.resume();
+        const buf = await track.file.arrayBuffer();
+        if (sessionSnapshot !== playSession) return false;
+        const decoded = await waCtx.decodeAudioData(buf.slice(0));
+        if (sessionSnapshot !== playSession) return false;
+        waBuffer = decoded;
+        track.duration = decoded.duration;
+        const durEl = document.getElementById('amphion-lp-time-dur');
+        if (durEl) durEl.textContent = fmtTime(decoded.duration);
+        updateTrackDurCell(currentIdx, decoded.duration);
+        startWebAudioNode(0);
+        isPlaying = true;
+        updatePlayUI();
+        return true;
+      } catch (err) {
+        console.warn('LocalPlayer WebAudio fallback error:', err);
+        return false;
+      }
+    };
+
     const getAudio = () => {
       if (!audio) {
         audio = new Audio();
+        audio.preload = 'auto';
         audio.addEventListener('timeupdate', onTimeUpdate);
         audio.addEventListener('ended', onEnded);
         audio.addEventListener('loadedmetadata', onMetaLoaded);
+        audio.addEventListener('error', onAudioError);
         audio.volume = 0.85;
       }
       return audio;
     };
 
+    const onAudioError = async () => {
+      const a = getAudio();
+      const srcAttr = a.getAttribute('src');
+      if (!srcAttr || currentIdx < 0 || currentIdx >= tracks.length || usingWebAudio) return;
+      const t = tracks[currentIdx];
+      const sessionSnapshot = playSession;
+      if (isPlaying || sessionSnapshot > 0) {
+        const ok = await playViaWebAudio(t, sessionSnapshot);
+        if (!ok && sessionSnapshot === playSession) {
+          const errMsg = a.error ? `código ${a.error.code}` : 'formato no compatible';
+          showToast(`⚠ No se pudo reproducir "${t.name}" (${errMsg})`);
+          isPlaying = false;
+          updatePlayUI();
+        }
+      }
+    };
+
+    const ensureTrackUrl = (t) => {
+      if (!t.url && t.file) {
+        t.url = URL.createObjectURL(t.file);
+      }
+      return t.url;
+    };
+
     const loadTrack = (idx) => {
       if (idx < 0 || idx >= tracks.length) return;
+      playSession++;
+      stopWebAudio();
+      waBuffer = null;
+      waOffset = 0;
       currentIdx = idx;
       const t = tracks[idx];
+      ensureTrackUrl(t);
       const a = getAudio();
       a.pause();
-      a.src = '';
+      a.removeAttribute('src');
       a.src = t.url;    // re-assign forces browser to pick up new blob URL
       a.load();         // critical: re-initialize the media element
+      updateProgressUI(0, isFinite(t.duration) ? t.duration : 0);
       updateTrackUI();
     };
 
@@ -1660,7 +1910,10 @@
       } else if (currentIdx < 0 && tracks.length > 0) {
         loadTrack(0);
       }
-      if (currentIdx < 0) return;
+      if (currentIdx < 0 || currentIdx >= tracks.length) return;
+
+      const t = tracks[currentIdx];
+      const sessionSnapshot = ++playSession;
 
       // Pausar Spotify Web Player si está sonando para no mezclar audios
       try {
@@ -1669,16 +1922,57 @@
         }
       } catch (e) {}
 
-      getAudio().play().then(() => {
+      if (usingWebAudio && waBuffer) {
+        if (waCtx && waCtx.state === 'suspended') waCtx.resume().catch(() => {});
+        startWebAudioNode(waOffset);
         isPlaying = true;
         updatePlayUI();
-      }).catch((err) => {
-        console.warn('LocalPlayer error al reproducir:', err);
+        return;
+      }
+
+      stopWebAudio();
+      ensureTrackUrl(t);
+      const a = getAudio();
+      if (a.src !== t.url) {
+        a.src = t.url;
+        a.load();
+      }
+
+      a.play().then(() => {
+        if (sessionSnapshot !== playSession) return;
+        isPlaying = true;
+        updatePlayUI();
+      }).catch(async (err) => {
+        if (sessionSnapshot !== playSession) return;
+        if (err && err.name === 'AbortError') return;
+        console.warn('LocalPlayer HTMLAudio error, intentando WebAudio:', err);
+        const ok = await playViaWebAudio(t, sessionSnapshot);
+        if (!ok && sessionSnapshot === playSession) {
+          isPlaying = false;
+          updatePlayUI();
+          showToast(`⚠ Error al reproducir "${t.name}": ${err ? err.message : 'audio bloqueado'}`);
+        }
       });
     };
 
     const pause = () => {
-      getAudio().pause();
+      if (usingWebAudio && waCtx && waBuffer) {
+        waOffset = Math.min(waBuffer.duration, (waCtx.currentTime - waStartTime) + waOffset);
+        if (waSource) {
+          try {
+            waSource.onended = null;
+            waSource.stop();
+            waSource.disconnect();
+          } catch (e) {}
+          waSource = null;
+        }
+        if (waTimer) {
+          clearInterval(waTimer);
+          waTimer = null;
+        }
+      } else {
+        getAudio().pause();
+      }
       isPlaying = false;
       updatePlayUI();
     };
@@ -1688,7 +1982,15 @@
     const nextTrack = () => {
       if (tracks.length === 0) return;
       if (repeatMode === 2) {
-        play(currentIdx);
+        waOffset = 0;
+        if (usingWebAudio && waBuffer) {
+          startWebAudioNode(0);
+          isPlaying = true;
+          updatePlayUI();
+        } else {
+          getAudio().currentTime = 0;
+          play(currentIdx);
+        }
         return;
       }
       if (isShuffle) {
@@ -1707,8 +2009,16 @@
 
     const prevTrack = () => {
       if (tracks.length === 0) return;
-      if (getAudio().currentTime > 3) {
-        getAudio().currentTime = 0;
+      const curPos = usingWebAudio && waCtx
+        ? (isPlaying ? (waCtx.currentTime - waStartTime) + waOffset : waOffset)
+        : getAudio().currentTime;
+      if (curPos > 3) {
+        if (usingWebAudio && waBuffer) {
+          if (isPlaying) startWebAudioNode(0);
+          else { waOffset = 0; updateProgressUI(0, waBuffer.duration); }
+        } else {
+          getAudio().currentTime = 0;
+        }
         return;
       }
       if (isShuffle) {
@@ -1723,26 +2033,77 @@
     const onEnded = () => nextTrack();
 
     const onTimeUpdate = () => {
+      if (usingWebAudio) return;
       const a = getAudio();
       if (!a.duration) return;
-      const pct = (a.currentTime / a.duration) * 100;
-      const fill = document.getElementById('amphion-lp-progress-fill');
-      if (fill) fill.style.width = `${pct}%`;
-      const cur = document.getElementById('amphion-lp-time-cur');
-      if (cur) cur.textContent = fmtTime(a.currentTime);
+      updateProgressUI(a.currentTime, a.duration);
+    };
 
-      const miniFill = document.getElementById('amphion-lp-mini-fill');
-      if (miniFill) miniFill.style.width = `${pct}%`;
+    const updateTrackDurCell = (idx, durSec) => {
+      if (idx < 0 || !isFinite(durSec)) return;
+      const cell = document.querySelector(`.amphion-lp-track[data-idx="${idx}"] .amphion-lp-track-dur`);
+      if (cell) cell.textContent = fmtTime(durSec);
     };
 
     const onMetaLoaded = () => {
       const a = getAudio();
-      if (currentIdx >= 0 && (!tracks[currentIdx].duration || !isFinite(tracks[currentIdx].duration))) {
+      if (currentIdx >= 0 && currentIdx < tracks.length && isFinite(a.duration)) {
         tracks[currentIdx].duration = a.duration;
+        updateTrackDurCell(currentIdx, a.duration);
       }
       const dur = document.getElementById('amphion-lp-time-dur');
-      if (dur) dur.textContent = fmtTime(a.duration);
-      renderTrackList();
+      if (dur && isFinite(a.duration)) dur.textContent = fmtTime(a.duration);
+    };
+
+    // Sondeo secuencial ligero de duraciones (1 solo elemento Audio reutilizado, nunca satura Chromium)
+    const startMetaProbe = () => {
+      const token = ++metaProbeToken;
+      if (!metaAudio) {
+        metaAudio = new Audio();
+        metaAudio.preload = 'metadata';
+        metaAudio.muted = true;
+      }
+      let cursor = 0;
+      const step = () => {
+        if (token !== metaProbeToken) return;
+        while (cursor < tracks.length && isFinite(tracks[cursor].duration)) {
+          cursor++;
+        }
+        if (cursor >= tracks.length) {
+          metaAudio.removeAttribute('src');
+          metaAudio.load();
+          return;
+        }
+        const idx = cursor++;
+        const t = tracks[idx];
+        if (!t || !t.file) {
+          setTimeout(step, 5);
+          return;
+        }
+        const tempUrl = t.url || URL.createObjectURL(t.file);
+        let settled = false;
+        const finish = (durVal) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          metaAudio.onloadedmetadata = null;
+          metaAudio.onerror = null;
+          metaAudio.removeAttribute('src');
+          metaAudio.load();
+          if (!t.url) URL.revokeObjectURL(tempUrl);
+          if (isFinite(durVal) && durVal > 0) {
+            t.duration = durVal;
+            updateTrackDurCell(idx, durVal);
+          }
+          setTimeout(step, 20);
+        };
+        const timer = setTimeout(() => finish(NaN), 900);
+        metaAudio.onloadedmetadata = () => finish(metaAudio.duration);
+        metaAudio.onerror = () => finish(NaN);
+        metaAudio.src = tempUrl;
+        metaAudio.load();
+      };
+      setTimeout(step, 120);
     };
 
     // Escaneo recursivo de directorios con File System Access API
@@ -1861,19 +2222,13 @@
 
     const addFiles = (files, defaultFolder = '') => {
       const newTracks = [];
-      const existingKeys = new Set(tracks.map((t) => `${t.name}:::${t.artist}`));
-      let loaded = 0;
+      const existingKeys = new Set(tracks.map((t) => `${t.folder || ''}:::${t.name}:::${t.artist}`));
 
       Array.from(files).forEach((file) => {
         if (!file.type.startsWith('audio/') && !/\.(mp3|flac|ogg|wav|aac|m4a|opus|wma)$/i.test(file.name)) {
           return;
         }
         const { artist, title } = guessArtistAndTitle(file.name);
-        const key = `${title}:::${artist}`;
-        if (existingKeys.has(key)) return; // Evitar duplicados
-        existingKeys.add(key);
-
-        const url = URL.createObjectURL(file);
         let folder = file._folderPath || '';
         if (!folder && file.webkitRelativePath) {
           const parts = file.webkitRelativePath.split('/');
@@ -1881,16 +2236,11 @@
         }
         if (!folder) folder = defaultFolder || activeFolderName;
 
-        const track = { file, name: title, artist, folder, duration: Infinity, url };
+        const key = `${folder}:::${title}:::${artist}`;
+        if (existingKeys.has(key)) return; // Evitar duplicados
+        existingKeys.add(key);
 
-        const tmpAudio = new Audio(url);
-        tmpAudio.addEventListener('loadedmetadata', () => {
-          track.duration = tmpAudio.duration;
-          loaded++;
-          if (loaded === newTracks.length) renderTrackList();
-        });
-
-        newTracks.push(track);
+        newTracks.push({ file, name: title, artist, folder, duration: Infinity, url: null });
       });
 
       if (newTracks.length === 0 && tracks.length === 0) {
@@ -1907,17 +2257,19 @@
         loadTrack(0);
       }
       if (newTracks.length > 0) {
-        showToast(`🎵 ${newTracks.length} canción${newTracks.length > 1 ? 'es' : ''} añadida${newTracks.length > 1 ? 's' : ''} a la biblioteca local`);
+        startMetaProbe();
+        showToast(`🎵 ${newTracks.length} canción${newTracks.length > 1 ? 'es' : ''} cargada${newTracks.length > 1 ? 's' : ''} en carpetas`);
       }
     };
 
     const removeTrack = (idx) => {
       if (idx < 0 || idx >= tracks.length) return;
-      URL.revokeObjectURL(tracks[idx].url);
+      if (tracks[idx].url) URL.revokeObjectURL(tracks[idx].url);
       tracks.splice(idx, 1);
       if (tracks.length === 0) {
         pause();
         currentIdx = -1;
+        selectedFolder = '';
         showDropzone(true);
       } else if (idx === currentIdx) {
         currentIdx = Math.min(currentIdx, tracks.length - 1);
@@ -1932,10 +2284,12 @@
     };
 
     const clearAll = () => {
+      metaProbeToken++;
       pause();
-      tracks.forEach((t) => URL.revokeObjectURL(t.url));
+      tracks.forEach((t) => { if (t.url) URL.revokeObjectURL(t.url); });
       tracks = [];
       currentIdx = -1;
+      selectedFolder = '';
       shuffleOrder = [];
       showDropzone(true);
       renderTrackList();
@@ -1996,10 +2350,17 @@
         <div id="amphion-lp-body">
           <!-- Sidebar: Arte + Metadata + Controles de audio -->
           <div id="amphion-lp-sidebar">
-            <div id="amphion-lp-cover">🎵</div>
+            <div id="amphion-lp-cover">
+              <svg viewBox="0 0 24 24" width="76" height="76" fill="none" stroke="#1ed760" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.9;">
+                <circle cx="12" cy="12" r="9"/>
+                <circle cx="12" cy="12" r="2.5" fill="#1ed760"/>
+                <path d="M9 18V8l9-2v10"/>
+              </svg>
+            </div>
             <div id="amphion-lp-info">
               <div id="amphion-lp-title">Sin reproducción</div>
               <div id="amphion-lp-subtitle">Selecciona o arrastra una pista</div>
+              <div id="amphion-lp-folder-badge" style="display:none;">📁 Carpeta</div>
             </div>
             <div id="amphion-lp-progress-wrap">
               <div id="amphion-lp-progress-bar">
@@ -2041,30 +2402,30 @@
               <input id="amphion-lp-volume" type="range" min="0" max="1" step="0.02" value="0.85">
             </div>
           </div>
-          <!-- Panel derecho: Lista de pistas descargadas / Dropzone -->
-          <div style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+          <!-- Panel derecho: Lista por carpetas / Dropzone -->
+          <div id="amphion-lp-right-panel" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
             <div id="amphion-lp-list-header">
-              <div style="display:flex;align-items:center;gap:12px;flex:1;">
+              <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
                 <span id="amphion-lp-count">0 canciones</span>
                 <input id="amphion-lp-search" type="search" placeholder="🔍 Buscar canción, artista o carpeta..." title="Filtrar por nombre, artista o carpeta">
               </div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <button id="amphion-lp-rescan-btn" title="Buscar nuevas canciones en la carpeta">🔄 Recargar</button>
+              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                <button id="amphion-lp-collapse-all" title="Contraer o expandir todas las carpetas">📂 Contraer todas</button>
                 <button id="amphion-lp-clear-btn" title="Vaciar toda la lista">Vaciar lista</button>
               </div>
             </div>
-            <div id="amphion-lp-tracklist">
-              <div id="amphion-lp-dropzone">
-                <div id="amphion-lp-dropzone-icon">📁</div>
-                <h3>Detección automática de canciones y carpetas</h3>
-                <p>Escanea automáticamente tus carpetas de música (ej. <b>~/Música</b> o <b>~/Descargas/Spotify</b>) o arrastra canciones aquí.</p>
-                <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:12px;">
-                  <button id="amphion-lp-pick-folder-btn" class="amphion-lp-cta-btn">📁 Escanear Carpeta de Música</button>
-                  <button id="amphion-lp-reload-empty-btn" class="amphion-lp-cta-btn secondary">🔄 Recargar canciones</button>
-                  <button id="amphion-lp-pick-btn" class="amphion-lp-cta-btn tertiary">📄 Añadir archivos sueltos</button>
-                </div>
+            <div id="amphion-lp-folder-bar"></div>
+            <div id="amphion-lp-dropzone">
+              <div id="amphion-lp-dropzone-icon">📁</div>
+              <h3>Detección automática de canciones y carpetas</h3>
+              <p>Escanea automáticamente tus carpetas de música (ej. <b>~/Música</b> o <b>~/Descargas/Spotify</b>) o arrastra canciones aquí.</p>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:12px;">
+                <button id="amphion-lp-pick-folder-btn" class="amphion-lp-cta-btn">📁 Escanear Carpeta de Música</button>
+                <button id="amphion-lp-reload-empty-btn" class="amphion-lp-cta-btn secondary">🔄 Recargar canciones</button>
+                <button id="amphion-lp-pick-btn" class="amphion-lp-cta-btn tertiary">📄 Añadir archivos sueltos</button>
               </div>
             </div>
+            <div id="amphion-lp-tracklist" style="display:none;"></div>
           </div>
         </div>
       `;
@@ -2081,10 +2442,25 @@
       if (pickFolderBtn) pickFolderBtn.onclick = () => openFolderPicker();
 
       overlay.querySelector('#amphion-lp-reload-btn').onclick = () => reloadLocalLibrary();
-      const rescanBtn = overlay.querySelector('#amphion-lp-rescan-btn');
-      if (rescanBtn) rescanBtn.onclick = () => reloadLocalLibrary();
       const reloadEmptyBtn = overlay.querySelector('#amphion-lp-reload-empty-btn');
       if (reloadEmptyBtn) reloadEmptyBtn.onclick = () => reloadLocalLibrary();
+
+      const collapseAllBtn = overlay.querySelector('#amphion-lp-collapse-all');
+      if (collapseAllBtn) {
+        collapseAllBtn.onclick = () => {
+          const folderKeys = Array.from(new Set(tracks.map((t) => t.folder || '📁 Sin carpeta')));
+          if (folderKeys.length === 0) return;
+          const allCollapsed = folderKeys.every((k) => collapsedFolders.has(k));
+          if (allCollapsed) {
+            collapsedFolders.clear();
+            collapseAllBtn.textContent = '📂 Contraer todas';
+          } else {
+            folderKeys.forEach((k) => collapsedFolders.add(k));
+            collapseAllBtn.textContent = '📂 Expandir todas';
+          }
+          renderTrackList();
+        };
+      }
 
       const searchInput = overlay.querySelector('#amphion-lp-search');
       if (searchInput) {
@@ -2126,14 +2502,21 @@
 
       overlay.querySelector('#amphion-lp-progress-bar').onclick = (e) => {
         const bar = e.currentTarget;
-        const pct = e.offsetX / bar.offsetWidth;
-        const a = getAudio();
-        if (a.duration) a.currentTime = pct * a.duration;
+        const pct = Math.max(0, Math.min(1, e.offsetX / bar.offsetWidth));
+        if (usingWebAudio && waBuffer) {
+          const targetSec = pct * waBuffer.duration;
+          if (isPlaying) startWebAudioNode(targetSec);
+          else { waOffset = targetSec; updateProgressUI(targetSec, waBuffer.duration); }
+        } else {
+          const a = getAudio();
+          if (a.duration) a.currentTime = pct * a.duration;
+        }
       };
 
       overlay.querySelector('#amphion-lp-volume').oninput = (e) => {
         const val = parseFloat(e.target.value);
         getAudio().volume = val;
+        if (waGain) waGain.gain.value = val;
         const vol = overlay.querySelector('#amphion-lp-vol-icon');
         if (vol) vol.textContent = val === 0 ? '🔇' : val < 0.4 ? '🔉' : '🔊';
       };
@@ -2142,10 +2525,12 @@
         const inp = overlay.querySelector('#amphion-lp-volume');
         if (a.volume > 0) {
           a.volume = 0;
+          if (waGain) waGain.gain.value = 0;
           inp.value = 0;
           overlay.querySelector('#amphion-lp-vol-icon').textContent = '🔇';
         } else {
           a.volume = 0.85;
+          if (waGain) waGain.gain.value = 0.85;
           inp.value = 0.85;
           overlay.querySelector('#amphion-lp-vol-icon').textContent = '🔊';
         }
@@ -2164,16 +2549,16 @@
       };
 
       // Drag & Drop con soporte recursivo de carpetas completas
-      const tracklist = overlay.querySelector('#amphion-lp-tracklist');
+      const rightPanel = overlay.querySelector('#amphion-lp-right-panel');
       const dropzone = overlay.querySelector('#amphion-lp-dropzone');
       ['dragover', 'dragenter'].forEach((evt) => {
-        tracklist.addEventListener(evt, (e) => {
+        rightPanel.addEventListener(evt, (e) => {
           e.preventDefault();
           if (dropzone) dropzone.classList.add('drag-over');
         });
       });
       ['dragleave', 'drop'].forEach((evt) => {
-        tracklist.addEventListener(evt, async (e) => {
+        rightPanel.addEventListener(evt, async (e) => {
           if (evt === 'drop') {
             e.preventDefault();
             const items = e.dataTransfer.items;
@@ -2203,31 +2588,103 @@
 
     const showDropzone = (show) => {
       const dz = document.getElementById('amphion-lp-dropzone');
+      const list = document.getElementById('amphion-lp-tracklist');
+      const fbar = document.getElementById('amphion-lp-folder-bar');
       if (dz) dz.style.display = show ? 'flex' : 'none';
+      if (list) list.style.display = show ? 'none' : 'block';
+      if (fbar && show) fbar.style.display = 'none';
     };
 
     // Track which folders are collapsed (folderKey -> bool)
     const collapsedFolders = new Set();
 
+    const syncTrackStateUI = () => {
+      const container = document.getElementById('amphion-lp-tracklist');
+      if (!container) return;
+      container.querySelectorAll('.amphion-lp-track').forEach((row) => {
+        const idx = Number(row.dataset.idx);
+        const isActive = idx === currentIdx;
+        row.classList.toggle('amphion-lp-active', isActive);
+        const numEl = row.querySelector('.amphion-lp-track-num');
+        if (numEl) {
+          numEl.classList.toggle('playing', isActive && isPlaying);
+          if (isActive && isPlaying) {
+            numEl.innerHTML = '<div class="amphion-eq"><span></span><span></span><span></span></div>';
+          } else {
+            numEl.textContent = row.dataset.displayNum || `${idx + 1}`;
+          }
+        }
+      });
+      const activeFolderKey = currentIdx >= 0 && tracks[currentIdx] ? (tracks[currentIdx].folder || '📁 Sin carpeta') : '';
+      container.querySelectorAll('.amphion-lp-folder-header').forEach((hdr) => {
+        hdr.classList.toggle('active-folder', hdr.dataset.folder === activeFolderKey);
+      });
+    };
+
+    const renderFolderBar = (folderCounts) => {
+      const bar = document.getElementById('amphion-lp-folder-bar');
+      if (!bar) return;
+      if (tracks.length === 0 || folderCounts.size <= 1) {
+        bar.style.display = 'none';
+        bar.innerHTML = '';
+        return;
+      }
+      bar.style.display = 'flex';
+      bar.innerHTML = '';
+
+      const allChip = document.createElement('button');
+      allChip.className = `amphion-lp-folder-chip${selectedFolder === '' ? ' selected' : ''}`;
+      allChip.textContent = `Todas (${tracks.length})`;
+      allChip.onclick = () => {
+        selectedFolder = '';
+        renderTrackList();
+      };
+      bar.appendChild(allChip);
+
+      folderCounts.forEach((cnt, folderKey) => {
+        const chip = document.createElement('button');
+        chip.className = `amphion-lp-folder-chip${selectedFolder === folderKey ? ' selected' : ''}`;
+        chip.textContent = `📁 ${shortFolderLabel(folderKey)} (${cnt})`;
+        chip.title = folderKey;
+        chip.onclick = () => {
+          selectedFolder = selectedFolder === folderKey ? '' : folderKey;
+          collapsedFolders.delete(folderKey);
+          renderTrackList();
+        };
+        bar.appendChild(chip);
+      });
+    };
+
     const renderTrackList = () => {
       const container = document.getElementById('amphion-lp-tracklist');
       if (!container) return;
 
-      const allVisible = searchFilter
-        ? tracks
-            .map((t, originalIdx) => ({ ...t, originalIdx }))
-            .filter((t) =>
-              t.name.toLowerCase().includes(searchFilter) ||
-              t.artist.toLowerCase().includes(searchFilter) ||
-              (t.folder && t.folder.toLowerCase().includes(searchFilter))
-            )
-        : tracks.map((t, originalIdx) => ({ ...t, originalIdx }));
+      const folderCounts = new Map();
+      tracks.forEach((t) => {
+        const fk = t.folder || '📁 Sin carpeta';
+        folderCounts.set(fk, (folderCounts.get(fk) || 0) + 1);
+      });
+      renderFolderBar(folderCounts);
+
+      const allVisible = tracks
+        .map((t, originalIdx) => ({ ...t, originalIdx }))
+        .filter((t) => {
+          if (selectedFolder && (t.folder || '📁 Sin carpeta') !== selectedFolder) return false;
+          if (!searchFilter) return true;
+          return (
+            t.name.toLowerCase().includes(searchFilter) ||
+            t.artist.toLowerCase().includes(searchFilter) ||
+            (t.folder && t.folder.toLowerCase().includes(searchFilter))
+          );
+        });
 
       const count = document.getElementById('amphion-lp-count');
       if (count) {
-        count.textContent = searchFilter
-          ? `${allVisible.length} de ${tracks.length} canciones`
-          : `${tracks.length} canción${tracks.length !== 1 ? 'es' : ''}${activeFolderName ? ' · ' + activeFolderName : ''}`;
+        if (searchFilter || selectedFolder) {
+          count.textContent = `${allVisible.length} de ${tracks.length} canciones`;
+        } else {
+          count.textContent = `${tracks.length} canción${tracks.length !== 1 ? 'es' : ''} · ${folderCounts.size} carpeta${folderCounts.size !== 1 ? 's' : ''}`;
+        }
       }
 
       if (tracks.length === 0) {
@@ -2239,9 +2696,8 @@
       container.innerHTML = '';
 
       if (searchFilter) {
-        // En modo búsqueda: lista plana sin grupos
-        allVisible.forEach((t) => {
-          container.appendChild(buildTrackRow(t, t.originalIdx));
+        allVisible.forEach((t, pos) => {
+          container.appendChild(buildTrackRow(t, t.originalIdx, pos + 1));
         });
         return;
       }
@@ -2254,22 +2710,27 @@
         folderMap.get(folderKey).push(t);
       });
 
-      folderMap.forEach((items, folderKey) => {
-        const isCollapsed = collapsedFolders.has(folderKey);
+      const activeFolderKey = currentIdx >= 0 && tracks[currentIdx] ? (tracks[currentIdx].folder || '📁 Sin carpeta') : '';
 
-        // Header de carpeta
+      folderMap.forEach((items, folderKey) => {
+        const isCollapsed = !selectedFolder && collapsedFolders.has(folderKey);
         const header = document.createElement('div');
-        header.className = 'amphion-lp-folder-header';
+        header.className = `amphion-lp-folder-header${folderKey === activeFolderKey ? ' active-folder' : ''}`;
         header.dataset.folder = folderKey;
-        const shortFolder = folderKey.replace(/^MY MUSIC\//, '').replace(/^MY MUSIC/, 'MY MUSIC');
+        const shortFolder = shortFolderLabel(folderKey);
         header.innerHTML = `
           <span class="amphion-lp-folder-chevron">${isCollapsed ? '▶' : '▼'}</span>
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="#a7a7a7" style="flex-shrink:0">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="${folderKey === activeFolderKey ? '#1ed760' : '#a7a7a7'}" style="flex-shrink:0">
             <path d="M20 6h-8l-2-2H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2z"/>
           </svg>
-          <span class="amphion-lp-folder-name" title="${folderKey}">${shortFolder}</span>
+          <span class="amphion-lp-folder-name" title="${esc(folderKey)}">${esc(shortFolder)}</span>
+          <button class="amphion-lp-folder-play" title="Reproducir esta carpeta">▶ Reproducir</button>
           <span class="amphion-lp-folder-count">${items.length}</span>
         `;
+        header.querySelector('.amphion-lp-folder-play').onclick = (e) => {
+          e.stopPropagation();
+          if (items.length > 0) play(items[0].originalIdx);
+        };
         header.onclick = () => {
           if (collapsedFolders.has(folderKey)) {
             collapsedFolders.delete(folderKey);
@@ -2283,31 +2744,33 @@
         if (!isCollapsed) {
           const group = document.createElement('div');
           group.className = 'amphion-lp-folder-group';
-          items.forEach((t) => {
-            group.appendChild(buildTrackRow(t, t.originalIdx));
+          items.forEach((t, posInFolder) => {
+            group.appendChild(buildTrackRow(t, t.originalIdx, posInFolder + 1));
           });
           container.appendChild(group);
         }
       });
     };
 
-    const buildTrackRow = (t, originalIdx) => {
+    const buildTrackRow = (t, originalIdx, displayNum) => {
+      const rowNum = displayNum !== undefined ? displayNum : (originalIdx + 1);
       const row = document.createElement('div');
       row.className = `amphion-lp-track${originalIdx === currentIdx ? ' amphion-lp-active' : ''}`;
       row.dataset.idx = originalIdx;
+      row.dataset.displayNum = String(rowNum);
 
       const isActive = originalIdx === currentIdx;
       const numContent = isActive && isPlaying
         ? `<div class="amphion-eq"><span></span><span></span><span></span></div>`
-        : `${originalIdx + 1}`;
+        : `${rowNum}`;
 
       row.innerHTML = `
         <div class="amphion-lp-track-num${isActive && isPlaying ? ' playing' : ''}">${numContent}</div>
         <div class="amphion-lp-track-info">
-          <div class="amphion-lp-track-name">${t.name}</div>
-          <div class="amphion-lp-track-meta">${t.artist || 'Música local'}</div>
+          <div class="amphion-lp-track-name">${esc(t.name)}</div>
+          <div class="amphion-lp-track-meta">${esc(t.artist || 'Música local')}</div>
         </div>
-        <div class="amphion-lp-track-dur">${isFinite(t.duration) ? fmtTime(t.duration) : '—'}</div>
+        <div class="amphion-lp-track-dur" data-dur-idx="${originalIdx}">${isFinite(t.duration) ? fmtTime(t.duration) : '—'}</div>
         <button class="amphion-lp-track-remove" data-idx="${originalIdx}" title="Quitar de la lista">✕</button>
       `;
 
@@ -2329,14 +2792,23 @@
 
       const title = document.getElementById('amphion-lp-title');
       const sub = document.getElementById('amphion-lp-subtitle');
+      const badge = document.getElementById('amphion-lp-folder-badge');
       if (title) title.textContent = t ? t.name : 'Sin reproducción';
-      if (sub) sub.textContent = t ? `${t.artist}${t.folder ? ' · ' + t.folder : ''}` : 'Selecciona o arrastra una pista';
+      if (sub) sub.textContent = t ? (t.artist || 'Música local') : 'Selecciona o arrastra una pista';
+      if (badge) {
+        if (t && t.folder) {
+          badge.style.display = 'inline-block';
+          badge.textContent = `📁 ${shortFolderLabel(t.folder)}`;
+        } else {
+          badge.style.display = 'none';
+        }
+      }
 
       const durEl = document.getElementById('amphion-lp-time-dur');
-      if (durEl && t && isFinite(t.duration)) durEl.textContent = fmtTime(t.duration);
+      if (durEl) durEl.textContent = t && isFinite(t.duration) ? fmtTime(t.duration) : '0:00';
 
       updateMiniPlayer(t);
-      renderTrackList();
+      syncTrackStateUI();
     };
 
     const updatePlayUI = () => {
@@ -2350,7 +2822,7 @@
       const miniBtn = document.getElementById('amphion-lp-mini-play');
       if (miniBtn) miniBtn.textContent = isPlaying ? '⏸' : '▶';
 
-      renderTrackList();
+      syncTrackStateUI();
 
       const mini = document.getElementById('amphion-lp-mini');
       if (mini) {

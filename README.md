@@ -1,10 +1,10 @@
 # Amphion 🎵
 
-[![Descargar Amphion .deb](https://img.shields.io/badge/Descargar%20Amphion-v0.7.6%20.deb%20(Linux%20Mint%20%2F%20Ubuntu)-1DB954?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.6_amd64.deb)
+[![Descargar Amphion .deb](https://img.shields.io/badge/Descargar%20Amphion-v0.7.8%20.deb%20(Linux%20Mint%20%2F%20Ubuntu)-1DB954?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.8_amd64.deb)
 [![Última Versión](https://img.shields.io/github/v/release/darwinsin822/amphion?style=for-the-badge&color=1ed760)](https://github.com/darwinsin822/amphion/releases/latest)
 
 > 🚀 **¿Quieres instalar Amphion en tu equipo?**  
-> 👉 **[Descargar instalador directo (.deb v0.7.6)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.6_amd64.deb)** *(1.5 MB — compatible con Linux Mint, Ubuntu y Debian)*
+> 👉 **[Descargar instalador directo (.deb v0.7.8)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.8_amd64.deb)** *(1.5 MB — compatible con Linux Mint, Ubuntu y Debian)*
 
 ---
 
@@ -28,8 +28,8 @@ Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spot
 
 * 🚀 **Un solo binario nativo:** sin Electron, sin servidor HTTP local y sin procesos auxiliares.
 * 🎧 **Base 100% Spotify Web Player:** la reproducción, la biblioteca y el catálogo son los oficiales de `open.spotify.com`.
-* 🎵 **Reproductor de Música Local / Descargada (Estética Spotify · v0.7.6):**
-  * 📁 **Detección Automática de Carpetas:** escaneo recursivo de directorios de música (`~/Música`, subcarpetas y `~/Descargas/Spotify`) mediante File System Access API y selector de directorios.
+* 🎵 **Reproductor de Música Local / Descargada (Estética Spotify · v0.7.8):**
+  * 📁 **Detección Automática y Vista por Carpetas:** escaneo recursivo de directorios de música (`~/Música`, subcarpetas y `~/Descargas/Spotify`), barra rápida de carpetas, grupos colapsables y reproducción por carpeta.
   * 🔄 **Botón de Recargar Canciones Nuevas:** escanea de nuevo la carpeta seleccionada en un clic, detecta descargas recientes y las añade a la biblioteca sin duplicar.
   * 🔍 **Buscador en Tiempo Real:** filtra canciones por título, artista o subcarpeta al instante.
   * 🏷️ **Etiquetas de Subcarpetas:** identifica qué álbum o subcarpeta pertenece cada pista.
@@ -59,14 +59,14 @@ Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spot
 ## 📦 Instalación en Linux Mint / Ubuntu
 
 ### Opción 1: Descarga e Instalación Fácil (Recomendada)
-1. **[Descarga aquí el paquete `amphion_0.7.5_amd64.deb`](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.5_amd64.deb)**.
+1. **[Descarga aquí el paquete `amphion_0.7.8_amd64.deb`](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.8_amd64.deb)**.
 2. Abre tu carpeta de **Descargas**, haz doble clic sobre el archivo descargado y presiona **«Instalar paquete»** (o con clic derecho > *Abrir con Instalador de paquetes GDebi*).
 3. ¡Listo! Abre **Amphion** desde el menú de inicio de tu sistema.
 
 #### O instala en 1 comando desde la terminal:
 ```bash
-wget https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.5_amd64.deb
-sudo apt install ./amphion_0.7.5_amd64.deb
+wget https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.8_amd64.deb
+sudo apt install ./amphion_0.7.8_amd64.deb
 ```
 
 ### Opción 2: Compilar desde el código fuente

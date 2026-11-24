@@ -46,7 +46,7 @@ async fn enable_adblock(session: &CdpSession) {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("🏛️ Amphion v0.7.3 — Temas, fondo personalizado, bloqueo de publicidad y SpotDown");
+    println!("🏛️ Amphion v{} — Temas, fondo personalizado, bloqueo de publicidad, SpotDown y Reproductor Local", env!("CARGO_PKG_VERSION"));
     println!("=====================================================================");
 
     let args: Vec<String> = std::env::args().collect();
