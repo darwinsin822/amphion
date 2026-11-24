@@ -233,6 +233,105 @@
         border-bottom: 1px solid rgba(255,255,255,0.08);
         flex-shrink: 0;
       }
+      #amphion-lp-folder-btn {
+        background: rgba(255,255,255,0.09);
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 500px;
+        padding: 7px 16px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #ffffff;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      }
+      #amphion-lp-folder-btn:hover {
+        background: rgba(255,255,255,0.18);
+        border-color: rgba(255,255,255,0.3);
+        transform: scale(1.02);
+      }
+      #amphion-lp-reload-btn {
+        background: rgba(30,215,96,0.15);
+        border: 1px solid rgba(30,215,96,0.4);
+        border-radius: 500px;
+        padding: 7px 16px;
+        font-size: 12px;
+        font-weight: 800;
+        color: #1ed760;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: background 0.15s, color 0.15s, transform 0.1s;
+      }
+      #amphion-lp-reload-btn:hover {
+        background: #1ed760;
+        color: #121212;
+        transform: scale(1.02);
+      }
+      #amphion-lp-search {
+        background: #242424;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 500px;
+        padding: 5px 14px;
+        font-size: 12px;
+        color: #ffffff;
+        outline: none;
+        width: 220px;
+        transition: width 0.2s, border-color 0.2s;
+      }
+      #amphion-lp-search:focus {
+        width: 300px;
+        border-color: #1ed760;
+      }
+      .amphion-lp-track-folder {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 3px;
+        background: rgba(255,255,255,0.06);
+        color: #86d8c8;
+        font-size: 10px;
+        font-weight: 600;
+        margin-left: 6px;
+        vertical-align: middle;
+      }
+      .amphion-lp-cta-btn {
+        background: #1ed760;
+        color: #121212;
+        border: none;
+        border-radius: 500px;
+        padding: 10px 22px;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: transform 0.12s, background 0.12s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .amphion-lp-cta-btn:hover {
+        transform: scale(1.03);
+        background: #1fdf64;
+      }
+      .amphion-lp-cta-btn.secondary {
+        background: rgba(30,215,96,0.18);
+        color: #1ed760;
+        border: 1px solid rgba(30,215,96,0.4);
+      }
+      .amphion-lp-cta-btn.secondary:hover {
+        background: #1ed760;
+        color: #121212;
+      }
+      .amphion-lp-cta-btn.tertiary {
+        background: rgba(255,255,255,0.08);
+        color: #ffffff;
+        border: 1px solid rgba(255,255,255,0.15);
+      }
+      .amphion-lp-cta-btn.tertiary:hover {
+        background: rgba(255,255,255,0.16);
+      }
       #amphion-lp-header h2 {
         font-size: 18px;
         font-weight: 800;
@@ -898,7 +997,7 @@
     }
   };
 
-  const VERSION = '0.7.5';
+  const VERSION = '0.7.6';
 
   const THEME_STORAGE_KEY = 'amphion-theme';
   let activeTheme = 'classic';
@@ -1404,7 +1503,7 @@
   // Permite escuchar la música descargada con la misma estética de Spotify
   // ==========================================================================
   const LocalPlayer = (() => {
-    let tracks = [];          // { file, name, artist, duration, url }
+    let tracks = [];          // { file, name, artist, folder, duration, url }
     let currentIdx = -1;
     let isPlaying = false;
     let isShuffle = false;
@@ -1412,6 +1511,43 @@
     let shuffleOrder = [];
     let audio = null;
     let uiReady = false;
+
+    // Estado de detección automática de carpetas de música
+    let activeDirectoryHandle = null;
+    let activeFolderName = '~/Música';
+    let searchFilter = '';
+
+    // Persistencia de directorio de música en IndexedDB
+    const openDb = () => new Promise((resolve, reject) => {
+      try {
+        const req = indexedDB.open('amphion_music_db', 1);
+        req.onupgradeneeded = (e) => {
+          e.target.result.createObjectStore('handles');
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      } catch (err) { reject(err); }
+    });
+
+    const saveDirHandle = async (handle) => {
+      try {
+        const db = await openDb();
+        const tx = db.transaction('handles', 'readwrite');
+        tx.objectStore('handles').put(handle, 'music_dir');
+      } catch (e) {}
+    };
+
+    const getSavedDirHandle = async () => {
+      try {
+        const db = await openDb();
+        return new Promise((resolve) => {
+          const tx = db.transaction('handles', 'readonly');
+          const req = tx.objectStore('handles').get('music_dir');
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        });
+      } catch (e) { return null; }
+    };
 
     // Utilidades
     const fmtTime = (sec) => {
@@ -1435,7 +1571,7 @@
       if (match) {
         return { artist: match[1].trim(), title: match[2].trim() };
       }
-      return { artist: 'Música descargada', title: cleanName(filename) };
+      return { artist: 'Música local', title: cleanName(filename) };
     };
 
     const buildShuffleOrder = () => {
@@ -1557,16 +1693,143 @@
       renderTrackList();
     };
 
-    const addFiles = (files) => {
+    // Escaneo recursivo de directorios con File System Access API
+    const scanDirectory = async (handle, path = '') => {
+      const files = [];
+      try {
+        for await (const entry of handle.values()) {
+          if (entry.kind === 'file') {
+            if (/\.(mp3|flac|ogg|wav|aac|m4a|opus|wma)$/i.test(entry.name)) {
+              try {
+                const file = await entry.getFile();
+                file._folderPath = path || handle.name;
+                files.push(file);
+              } catch (e) {}
+            }
+          } else if (entry.kind === 'directory') {
+            const sub = await scanDirectory(entry, path ? `${path}/${entry.name}` : entry.name);
+            files.push(...sub);
+          }
+        }
+      } catch (err) {
+        console.warn('Error al escanear directorio:', err);
+      }
+      return files;
+    };
+
+    // Escaneo recursivo para drag & drop de carpetas desde el explorador
+    const scanEntry = async (entry, path = '') => {
+      if (entry.isFile) {
+        return new Promise((res) => {
+          entry.file((f) => {
+            f._folderPath = path || 'Música';
+            res([f]);
+          }, () => res([]));
+        });
+      } else if (entry.isDirectory) {
+        const reader = entry.createReader();
+        const readAll = () => new Promise((res) => {
+          reader.readEntries((batch) => res(batch || []), () => res([]));
+        });
+        let all = [];
+        let batch;
+        do {
+          batch = await readAll();
+          all.push(...batch);
+        } while (batch.length > 0);
+        const nested = await Promise.all(
+          all.map((sub) => scanEntry(sub, path ? `${path}/${entry.name}` : entry.name))
+        );
+        return nested.flat();
+      }
+      return [];
+    };
+
+    // Recargar y detectar automáticamente canciones nuevas en la carpeta de música
+    const reloadLocalLibrary = async () => {
+      showToast('🔄 Escaneando carpetas de música en busca de nuevas canciones...');
+      let handle = activeDirectoryHandle;
+      if (!handle) {
+        handle = await getSavedDirHandle();
+        if (handle) activeDirectoryHandle = handle;
+      }
+
+      if (handle) {
+        try {
+          if (handle.queryPermission) {
+            const perm = await handle.queryPermission({ mode: 'read' });
+            if (perm !== 'granted') {
+              const req = await handle.requestPermission({ mode: 'read' });
+              if (req !== 'granted') handle = null;
+            }
+          }
+        } catch (e) { handle = null; }
+      }
+
+      if (!handle) {
+        // Si no hay handle guardado, invocar selector de directorio nativo
+        if (window.showDirectoryPicker) {
+          try {
+            handle = await window.showDirectoryPicker({ id: 'amphion_music', mode: 'read' });
+            activeDirectoryHandle = handle;
+            activeFolderName = handle.name;
+            await saveDirHandle(handle);
+          } catch (e) {
+            const folderInp = document.getElementById('amphion-lp-folder-input');
+            if (folderInp) folderInp.click();
+            return;
+          }
+        } else {
+          const folderInp = document.getElementById('amphion-lp-folder-input');
+          if (folderInp) folderInp.click();
+          return;
+        }
+      }
+
+      const files = await scanDirectory(handle, handle.name);
+      if (files.length === 0) {
+        showToast(`⚠ No se encontraron canciones de audio en ${handle.name}`);
+        return;
+      }
+
+      const prevCount = tracks.length;
+      addFiles(files, handle.name);
+      const newAdded = tracks.length - prevCount;
+      if (newAdded > 0) {
+        showToast(`✨ Se detectaron ${newAdded} canciones nuevas en ${handle.name} (Total: ${tracks.length})`);
+      } else {
+        showToast(`✅ Colección al día: ${tracks.length} canciones en ${handle.name} sin cambios`);
+      }
+    };
+
+    const filterTracks = (query) => {
+      searchFilter = (query || '').trim().toLowerCase();
+      renderTrackList();
+    };
+
+    const addFiles = (files, defaultFolder = '') => {
       const newTracks = [];
+      const existingKeys = new Set(tracks.map((t) => `${t.name}:::${t.artist}`));
       let loaded = 0;
+
       Array.from(files).forEach((file) => {
         if (!file.type.startsWith('audio/') && !/\.(mp3|flac|ogg|wav|aac|m4a|opus|wma)$/i.test(file.name)) {
           return;
         }
-        const url = URL.createObjectURL(file);
         const { artist, title } = guessArtistAndTitle(file.name);
-        const track = { file, name: title, artist, duration: Infinity, url };
+        const key = `${title}:::${artist}`;
+        if (existingKeys.has(key)) return; // Evitar duplicados
+        existingKeys.add(key);
+
+        const url = URL.createObjectURL(file);
+        let folder = file._folderPath || '';
+        if (!folder && file.webkitRelativePath) {
+          const parts = file.webkitRelativePath.split('/');
+          folder = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+        }
+        if (!folder) folder = defaultFolder || activeFolderName;
+
+        const track = { file, name: title, artist, folder, duration: Infinity, url };
 
         const tmpAudio = new Audio(url);
         tmpAudio.addEventListener('loadedmetadata', () => {
@@ -1578,7 +1841,7 @@
         newTracks.push(track);
       });
 
-      if (newTracks.length === 0) {
+      if (newTracks.length === 0 && tracks.length === 0) {
         showToast('⚠ No se encontraron archivos de audio compatibles (.mp3, .flac, .wav, .m4a)');
         return;
       }
@@ -1588,10 +1851,12 @@
       buildShuffleOrder();
       showDropzone(false);
       renderTrackList();
-      if (wasEmpty) {
+      if (wasEmpty && tracks.length > 0) {
         loadTrack(0);
       }
-      showToast(`🎵 ${newTracks.length} canción${newTracks.length > 1 ? 'es' : ''} añadida${newTracks.length > 1 ? 's' : ''} a la biblioteca local`);
+      if (newTracks.length > 0) {
+        showToast(`🎵 ${newTracks.length} canción${newTracks.length > 1 ? 'es' : ''} añadida${newTracks.length > 1 ? 's' : ''} a la biblioteca local`);
+      }
     };
 
     const removeTrack = (idx) => {
@@ -1626,6 +1891,25 @@
       showToast('🗑 Lista de música local vaciada');
     };
 
+    const openFolderPicker = async () => {
+      if (window.showDirectoryPicker) {
+        try {
+          const handle = await window.showDirectoryPicker({ id: 'amphion_music', mode: 'read' });
+          activeDirectoryHandle = handle;
+          activeFolderName = handle.name;
+          await saveDirHandle(handle);
+          showToast(`📁 Carpeta seleccionada: ${handle.name}. Escaneando canciones...`);
+          const files = await scanDirectory(handle, handle.name);
+          addFiles(files, handle.name);
+          return;
+        } catch (e) {
+          if (e.name === 'AbortError') return;
+        }
+      }
+      const folderInp = document.getElementById('amphion-lp-folder-input');
+      if (folderInp) folderInp.click();
+    };
+
     const buildUI = () => {
       if (document.getElementById('amphion-local-player')) {
         uiReady = true;
@@ -1643,7 +1927,14 @@
             Reproductor de Música Descargada · Local
           </h2>
           <div style="display:flex;align-items:center;gap:10px;">
-            <label id="amphion-lp-add-label" style="background:#1ed760;border:none;border-radius:500px;padding:7px 16px;font-size:12px;font-weight:800;color:#121212;cursor:pointer;transition:transform 0.12s,background 0.12s;" title="Añadir canciones descargadas">
+            <button id="amphion-lp-folder-btn" title="Detectar automáticamente carpetas de música (ej. ~/Música)">
+              📁 Escanear Carpeta
+            </button>
+            <input id="amphion-lp-folder-input" type="file" webkitdirectory directory multiple style="display:none;">
+            <button id="amphion-lp-reload-btn" title="Recargar y buscar canciones nuevas en la carpeta">
+              🔄 Recargar canciones
+            </button>
+            <label id="amphion-lp-add-label" style="background:#1ed760;border:none;border-radius:500px;padding:7px 16px;font-size:12px;font-weight:800;color:#121212;cursor:pointer;transition:transform 0.12s,background 0.12s;" title="Añadir canciones sueltas">
               + Añadir archivos
               <input id="amphion-lp-file-input" type="file" multiple accept="audio/*,.mp3,.flac,.ogg,.wav,.aac,.m4a,.opus,.wma" style="display:none;">
             </label>
@@ -1701,15 +1992,25 @@
           <!-- Panel derecho: Lista de pistas descargadas / Dropzone -->
           <div style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
             <div id="amphion-lp-list-header">
-              <span id="amphion-lp-count">0 canciones</span>
-              <button id="amphion-lp-clear-btn" title="Vaciar toda la lista">Vaciar lista</button>
+              <div style="display:flex;align-items:center;gap:12px;flex:1;">
+                <span id="amphion-lp-count">0 canciones</span>
+                <input id="amphion-lp-search" type="search" placeholder="🔍 Buscar canción, artista o carpeta..." title="Filtrar por nombre, artista o carpeta">
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <button id="amphion-lp-rescan-btn" title="Buscar nuevas canciones en la carpeta">🔄 Recargar</button>
+                <button id="amphion-lp-clear-btn" title="Vaciar toda la lista">Vaciar lista</button>
+              </div>
             </div>
             <div id="amphion-lp-tracklist">
               <div id="amphion-lp-dropzone">
-                <div id="amphion-lp-dropzone-icon">🎵</div>
-                <h3>Arrastra y suelta tu música aquí</h3>
-                <p>Compatible con archivos MP3 descargados de SpotDown, SoundLoaders, SpotMate, FLAC, WAV, M4A</p>
-                <button id="amphion-lp-pick-btn">Explorar archivos de mi PC</button>
+                <div id="amphion-lp-dropzone-icon">📁</div>
+                <h3>Detección automática de canciones y carpetas</h3>
+                <p>Escanea automáticamente tus carpetas de música (ej. <b>~/Música</b> o <b>~/Descargas/Spotify</b>) o arrastra canciones aquí.</p>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:12px;">
+                  <button id="amphion-lp-pick-folder-btn" class="amphion-lp-cta-btn">📁 Escanear Carpeta de Música</button>
+                  <button id="amphion-lp-reload-empty-btn" class="amphion-lp-cta-btn secondary">🔄 Recargar canciones</button>
+                  <button id="amphion-lp-pick-btn" class="amphion-lp-cta-btn tertiary">📄 Añadir archivos sueltos</button>
+                </div>
               </div>
             </div>
           </div>
@@ -1722,6 +2023,34 @@
       overlay.querySelector('#amphion-lp-playpause').onclick = () => toggle();
       overlay.querySelector('#amphion-lp-prev').onclick = () => prevTrack();
       overlay.querySelector('#amphion-lp-next').onclick = () => nextTrack();
+
+      overlay.querySelector('#amphion-lp-folder-btn').onclick = () => openFolderPicker();
+      const pickFolderBtn = overlay.querySelector('#amphion-lp-pick-folder-btn');
+      if (pickFolderBtn) pickFolderBtn.onclick = () => openFolderPicker();
+
+      overlay.querySelector('#amphion-lp-reload-btn').onclick = () => reloadLocalLibrary();
+      const rescanBtn = overlay.querySelector('#amphion-lp-rescan-btn');
+      if (rescanBtn) rescanBtn.onclick = () => reloadLocalLibrary();
+      const reloadEmptyBtn = overlay.querySelector('#amphion-lp-reload-empty-btn');
+      if (reloadEmptyBtn) reloadEmptyBtn.onclick = () => reloadLocalLibrary();
+
+      const searchInput = overlay.querySelector('#amphion-lp-search');
+      if (searchInput) {
+        searchInput.oninput = (e) => filterTracks(e.target.value);
+      }
+
+      const folderInput = overlay.querySelector('#amphion-lp-folder-input');
+      if (folderInput) {
+        folderInput.onchange = () => {
+          if (folderInput.files && folderInput.files.length > 0) {
+            const first = folderInput.files[0];
+            const folderName = first.webkitRelativePath ? first.webkitRelativePath.split('/')[0] : 'Música';
+            activeFolderName = folderName;
+            addFiles(folderInput.files, folderName);
+            folderInput.value = '';
+          }
+        };
+      }
 
       overlay.querySelector('#amphion-lp-shuffle').onclick = (e) => {
         isShuffle = !isShuffle;
@@ -1782,7 +2111,7 @@
         clearAll();
       };
 
-      // Drag & Drop
+      // Drag & Drop con soporte recursivo de carpetas completas
       const tracklist = overlay.querySelector('#amphion-lp-tracklist');
       const dropzone = overlay.querySelector('#amphion-lp-dropzone');
       ['dragover', 'dragenter'].forEach((evt) => {
@@ -1792,10 +2121,26 @@
         });
       });
       ['dragleave', 'drop'].forEach((evt) => {
-        tracklist.addEventListener(evt, (e) => {
+        tracklist.addEventListener(evt, async (e) => {
           if (evt === 'drop') {
             e.preventDefault();
-            addFiles(e.dataTransfer.files);
+            const items = e.dataTransfer.items;
+            if (items && items.length > 0 && items[0].webkitGetAsEntry) {
+              const filePromises = [];
+              for (let i = 0; i < items.length; i++) {
+                const entry = items[i].webkitGetAsEntry();
+                if (entry) filePromises.push(scanEntry(entry));
+              }
+              const nested = await Promise.all(filePromises);
+              const flat = nested.flat();
+              if (flat.length > 0) {
+                addFiles(flat);
+              } else {
+                addFiles(e.dataTransfer.files);
+              }
+            } else {
+              addFiles(e.dataTransfer.files);
+            }
           }
           if (dropzone) dropzone.classList.remove('drag-over');
         });
@@ -1813,8 +2158,24 @@
       const container = document.getElementById('amphion-lp-tracklist');
       if (!container) return;
 
+      const visible = searchFilter
+        ? tracks
+            .map((t, originalIdx) => ({ ...t, originalIdx }))
+            .filter((t) =>
+              t.name.toLowerCase().includes(searchFilter) ||
+              t.artist.toLowerCase().includes(searchFilter) ||
+              (t.folder && t.folder.toLowerCase().includes(searchFilter))
+            )
+        : tracks.map((t, originalIdx) => ({ ...t, originalIdx }));
+
       const count = document.getElementById('amphion-lp-count');
-      if (count) count.textContent = `${tracks.length} canción${tracks.length !== 1 ? 'es' : ''}`;
+      if (count) {
+        if (searchFilter) {
+          count.textContent = `${visible.length} de ${tracks.length} canciones`;
+        } else {
+          count.textContent = `${tracks.length} canción${tracks.length !== 1 ? 'es' : ''}${activeFolderName ? ' · ' + activeFolderName : ''}`;
+        }
+      }
 
       if (tracks.length === 0) {
         showDropzone(true);
@@ -1825,30 +2186,33 @@
 
       container.querySelectorAll('.amphion-lp-track').forEach((el) => el.remove());
 
-      tracks.forEach((t, idx) => {
+      visible.forEach((t) => {
+        const originalIdx = t.originalIdx;
         const row = document.createElement('div');
-        row.className = `amphion-lp-track${idx === currentIdx ? ' amphion-lp-active' : ''}`;
-        row.dataset.idx = idx;
+        row.className = `amphion-lp-track${originalIdx === currentIdx ? ' amphion-lp-active' : ''}`;
+        row.dataset.idx = originalIdx;
 
-        const isActive = idx === currentIdx;
+        const isActive = originalIdx === currentIdx;
         const numContent = isActive && isPlaying
           ? `<div class="amphion-eq"><span></span><span></span><span></span></div>`
-          : `${idx + 1}`;
+          : `${originalIdx + 1}`;
+
+        const folderTag = t.folder ? `<span class="amphion-lp-track-folder">${t.folder}</span>` : '';
 
         row.innerHTML = `
           <div class="amphion-lp-track-num${isActive && isPlaying ? ' playing' : ''}">${numContent}</div>
           <div class="amphion-lp-track-info">
             <div class="amphion-lp-track-name">${t.name}</div>
-            <div class="amphion-lp-track-meta">${t.artist}</div>
+            <div class="amphion-lp-track-meta">${t.artist}${folderTag}</div>
           </div>
           <div class="amphion-lp-track-dur">${isFinite(t.duration) ? fmtTime(t.duration) : '—'}</div>
-          <button class="amphion-lp-track-remove" data-idx="${idx}" title="Quitar de la lista">✕</button>
+          <button class="amphion-lp-track-remove" data-idx="${originalIdx}" title="Quitar de la lista">✕</button>
         `;
 
         row.onclick = (e) => {
           if (e.target.classList.contains('amphion-lp-track-remove')) return;
-          if (idx === currentIdx) toggle();
-          else play(idx);
+          if (originalIdx === currentIdx) toggle();
+          else play(originalIdx);
         };
         row.querySelector('.amphion-lp-track-remove').onclick = (e) => {
           e.stopPropagation();
@@ -1866,7 +2230,7 @@
       const title = document.getElementById('amphion-lp-title');
       const sub = document.getElementById('amphion-lp-subtitle');
       if (title) title.textContent = t ? t.name : 'Sin reproducción';
-      if (sub) sub.textContent = t ? t.artist : 'Selecciona o arrastra una pista';
+      if (sub) sub.textContent = t ? `${t.artist}${t.folder ? ' · ' + t.folder : ''}` : 'Selecciona o arrastra una pista';
 
       const durEl = document.getElementById('amphion-lp-time-dur');
       if (durEl && t && isFinite(t.duration)) durEl.textContent = fmtTime(t.duration);
@@ -1903,7 +2267,7 @@
       const mini = document.getElementById('amphion-lp-mini');
       if (!mini) return;
       mini.querySelector('.mini-title').textContent = t ? t.name : 'Sin reproducción local';
-      mini.querySelector('.mini-sub').textContent = t ? t.artist : 'Amphion Local Player';
+      mini.querySelector('.mini-sub').textContent = t ? `${t.artist}${t.folder ? ' · ' + t.folder : ''}` : 'Amphion Local Player';
     };
 
     const open = () => {
@@ -1986,6 +2350,9 @@
       toggle: toggle_ui,
       injectMiniPlayer,
       addFiles,
+      scanFolder: openFolderPicker,
+      reloadLocalLibrary,
+      searchTracks: filterTracks,
       play,
       pause,
       next: nextTrack,
@@ -1995,7 +2362,6 @@
       getCurrentTrack: () => (currentIdx >= 0 ? { ...tracks[currentIdx] } : null)
     };
   })();
-
   // 1. BOTÓN "Premium" Y BOTÓN "SpotDown" EN LA BARRA SUPERIOR
   const PREMIUM_LABEL = 'Amphion';
 
@@ -2748,7 +3114,10 @@
       isPlaying: LocalPlayer.isPlaying,
       getTracks: LocalPlayer.getTracks,
       getCurrentTrack: LocalPlayer.getCurrentTrack,
-      addFiles: LocalPlayer.addFiles
+      addFiles: LocalPlayer.addFiles,
+      scanFolder: LocalPlayer.scanFolder,
+      reload: LocalPlayer.reloadLocalLibrary,
+      search: LocalPlayer.searchTracks
     },
     spotDown: {
       open: openSpotDown,

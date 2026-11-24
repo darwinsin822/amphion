@@ -1,14 +1,14 @@
 # Amphion 🎵
 
-[![Descargar Amphion .deb](https://img.shields.io/badge/Descargar%20Amphion-v0.7.5%20.deb%20(Linux%20Mint%20%2F%20Ubuntu)-1DB954?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.5_amd64.deb)
+[![Descargar Amphion .deb](https://img.shields.io/badge/Descargar%20Amphion-v0.7.6%20.deb%20(Linux%20Mint%20%2F%20Ubuntu)-1DB954?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.6_amd64.deb)
 [![Última Versión](https://img.shields.io/github/v/release/darwinsin822/amphion?style=for-the-badge&color=1ed760)](https://github.com/darwinsin822/amphion/releases/latest)
 
 > 🚀 **¿Quieres instalar Amphion en tu equipo?**  
-> 👉 **[Descargar instalador directo (.deb v0.7.5)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.5_amd64.deb)** *(1.5 MB — compatible con Linux Mint, Ubuntu y Debian)*
+> 👉 **[Descargar instalador directo (.deb v0.7.6)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.6_amd64.deb)** *(1.5 MB — compatible con Linux Mint, Ubuntu y Debian)*
 
 ---
 
-> **Streaming puro de Spotify sobre el Web Player oficial, con interfaz Premium inyectada, descargador SpotDown Multi-Servicio y Reproductor de Música Local, para Linux Mint Cinnamon**
+> **Streaming puro de Spotify sobre el Web Player oficial, con interfaz Premium inyectada, descargador SpotDown Multi-Servicio y Reproductor de Música Local con Detección Automática de Carpetas, para Linux Mint Cinnamon**
 
 Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spotify en una ventana de aplicación y le inyecta una capa de interfaz Premium vía Chrome DevTools Protocol (CDP). No hay servidor local, no hay panel duplicado y no se almacenan credenciales.
 
@@ -28,14 +28,17 @@ Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spot
 
 * 🚀 **Un solo binario nativo:** sin Electron, sin servidor HTTP local y sin procesos auxiliares.
 * 🎧 **Base 100% Spotify Web Player:** la reproducción, la biblioteca y el catálogo son los oficiales de `open.spotify.com`.
-* 🎵 **Reproductor de Música Local / Descargada (Estética Spotify):**
-  * Botón directo en la barra superior (`Música Local`), tarjeta en Ajustes o atajo global **`Alt + L`**.
-  * Reproduce tus canciones descargadas desde SpotDown, SoundLoaders, SpotMate o cualquier archivo en tu PC (`.mp3`, `.flac`, `.wav`, `.ogg`, `.m4a`, `.opus`).
-  * Interfaz inmersiva con cover art animado, barra de progreso interactiva al milisegundo, volumen y tiempos.
-  * Modos **Aleatorio (Shuffle)** y **Repetición (Off / Todas / Una sola pista)** idénticos a Spotify.
-  * **Drag & Drop:** arrastra carpetas o canciones desde Nemo, Nautilus o Dolphin directamente a la ventana.
-  * **Ecualizador visual:** barras animadas en verde Spotify sobre la pista activa.
-  * **Mini-player persistente:** si cierras la ventana del reproductor local, continúa sonando en un widget flotante en la esquina inferior.
+* 🎵 **Reproductor de Música Local / Descargada (Estética Spotify · v0.7.6):**
+  * 📁 **Detección Automática de Carpetas:** escaneo recursivo de directorios de música (`~/Música`, subcarpetas y `~/Descargas/Spotify`) mediante File System Access API y selector de directorios.
+  * 🔄 **Botón de Recargar Canciones Nuevas:** escanea de nuevo la carpeta seleccionada en un clic, detecta descargas recientes y las añade a la biblioteca sin duplicar.
+  * 🔍 **Buscador en Tiempo Real:** filtra canciones por título, artista o subcarpeta al instante.
+  * 🏷️ **Etiquetas de Subcarpetas:** identifica qué álbum o subcarpeta pertenece cada pista.
+  * ⌨️ **Acceso Rápido:** botón directo en la barra superior (`Música Local`), tarjeta en Ajustes o atajo global **`Alt + L`**.
+  * 🎧 **Formatos Soportados:** `.mp3`, `.flac`, `.wav`, `.ogg`, `.m4a`, `.opus` y `.wma`.
+  * 🎛️ **Controles Completos:** Play/Pausa, Shuffle, Repetición (Off / Todas / Una sola pista), volumen con silenciador y barra de progreso interactiva.
+  * 📂 **Drag & Drop Inteligente:** arrastra carpetas completas o canciones desde Nemo, Nautilus o Dolphin directamente al reproductor.
+  * 📊 **Ecualizador Visual:** barras animadas en verde Spotify sobre la pista que está sonando.
+  * 🪟 **Mini-player Persistente:** si minimizas o cierras la ventana del reproductor, sigue sonando en un widget flotante en la esquina inferior.
 * ⬇️ **Descargador Multi-Servicio (SpotDown v2 · Estilo Sakukelly Linux):**
   * 🟢 **SpotDown**, 🔵 **SoundLoaders** y 🟣 **SpotMate** integrados con panel selector popup.
   * 🔴 **Badge dinámico pulsante** en el botón superior cuando se detecta una canción o playlist activa.

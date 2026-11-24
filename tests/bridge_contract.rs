@@ -172,3 +172,27 @@ fn reproductor_local_atajo_teclado() {
     assert!(BRIDGE.contains("e.altKey"));
     assert!(BRIDGE.contains("e.key === 'l' || e.key === 'L'"));
 }
+
+#[test]
+fn reproductor_local_deteccion_carpetas() {
+    assert!(BRIDGE.contains("amphion-lp-folder-btn"));
+    assert!(BRIDGE.contains("amphion-lp-folder-input"));
+    assert!(BRIDGE.contains("webkitdirectory"));
+    assert!(BRIDGE.contains("scanDirectory"));
+    assert!(BRIDGE.contains("showDirectoryPicker"));
+}
+
+#[test]
+fn reproductor_local_recargar_canciones() {
+    assert!(BRIDGE.contains("amphion-lp-reload-btn"));
+    assert!(BRIDGE.contains("reloadLocalLibrary"));
+    assert!(BRIDGE.contains("Recargar canciones"));
+}
+
+#[test]
+fn reproductor_local_buscador_filtro() {
+    assert!(BRIDGE.contains("amphion-lp-search"));
+    assert!(BRIDGE.contains("filterTracks"));
+    assert!(BRIDGE.contains("amphion-lp-track-folder"));
+}
+
