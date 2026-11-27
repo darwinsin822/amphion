@@ -1,4 +1,4 @@
-// Amphion Bridge v0.7.9 - Spotify Web Player Controller, Local Player & Pure Streaming Engine
+// Amphion Bridge v0.7.12 - Spotify Web Player Controller, Local Player & Pure Streaming Engine
 // Diseñado para Linux Mint Cinnamon con arquitectura de máximo rendimiento (Zero Downloads)
 
 (() => {
@@ -40,6 +40,27 @@
       }
       .amphion-premium-pill-btn:active {
         transform: scale(0.98) !important;
+      }
+
+      /* Bloqueo de promociones Premium del Web Player (carteles y banners) */
+      [data-testid="upsell-card"],
+      [data-testid="upsell-banner"],
+      [data-testid="premium-upsell"],
+      [data-testid="premium-upsell-banner"],
+      [data-testid="premium-banner"],
+      [data-testid="upgrade-banner"],
+      [data-testid="upgrade-button"],
+      [data-testid="ad-billboard"],
+      [data-testid="advertisement"],
+      [data-testid="ad-container"],
+      [class*="Upsell"],
+      [class*="upsell"],
+      [class*="PremiumBanner"],
+      [class*="premiumBanner"],
+      [class*="PremiumUpsell"],
+      [class*="premiumUpsell"],
+      [data-amphion-premium-blocked] {
+        display: none !important;
       }
 
       /* Botón SpotDown en barra superior y acentos (Zeus v2 — Estilo Sakukelly Linux) */
@@ -483,16 +504,12 @@
       .amphion-lp-btn:hover { color: #fff; transform: scale(1.1); background: rgba(255,255,255,0.08); }
       .amphion-lp-btn.active { color: #1ed760; }
       #amphion-lp-playpause {
-        width: 52px; height: 52px; font-size: 20px;
-        background: #ffffff; color: #121212;
+        width: 52px; height: 52px;
         border-radius: 50%; border: none; cursor: pointer;
         display: flex; align-items: center; justify-content: center;
         flex-shrink: 0;
-        transition: transform 0.12s, background 0.12s;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.4);
       }
-      #amphion-lp-playpause:hover { transform: scale(1.06); background: #f0f0f0; }
-      #amphion-lp-playpause:active { transform: scale(0.96); }
+      /* El estilo visual del botón principal vive en el bloque moderno inferior. */
 
       /* Panel derecho: lista de pistas */
       #amphion-lp-tracklist {
@@ -710,6 +727,250 @@
         margin-left: 18px;
         margin-bottom: 6px;
         margin-top: 4px;
+      }
+
+      /* Biblioteca visual tipo álbum y panel de reproducción inspirado en Spotify. */
+      #amphion-local-player {
+        background:
+          radial-gradient(ellipse at 18% 0%, rgba(145,74,92,0.28), transparent 42%),
+          radial-gradient(ellipse at 82% 100%, rgba(44,111,142,0.2), transparent 45%),
+          linear-gradient(135deg, #172026 0%, #111518 58%, #101416 100%);
+      }
+      #amphion-lp-sidebar {
+        width: clamp(300px, 29vw, 390px);
+        min-width: 280px;
+        justify-content: center;
+        padding: 28px clamp(22px, 3vw, 42px);
+        background: linear-gradient(180deg, rgba(60,76,86,0.42), rgba(9,13,16,0.58));
+      }
+      #amphion-lp-cover {
+        width: min(100%, 330px);
+        height: auto;
+        aspect-ratio: 1;
+        border-radius: 8px;
+        background:
+          radial-gradient(circle at 25% 20%, hsla(var(--cover-hue, 195), 65%, 66%, 0.72), transparent 58%),
+          linear-gradient(145deg, hsl(var(--cover-hue, 195), 35%, 34%), #141b20 82%);
+        box-shadow: 0 24px 64px rgba(0,0,0,0.52);
+      }
+      #amphion-lp-cover-image {
+        display: none;
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      #amphion-lp-cover.has-art #amphion-lp-cover-image { display: block; }
+      #amphion-lp-cover.has-art > svg { display: none; }
+      #amphion-lp-cover.has-art::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(180deg, transparent 55%, rgba(0,0,0,0.12));
+      }
+      #amphion-lp-title { font-size: 21px; letter-spacing: -0.35px; }
+      #amphion-lp-subtitle { font-size: 14px; color: #c0c7cb; }
+      #amphion-lp-controls { gap: clamp(10px, 1.4vw, 20px); }
+      #amphion-lp-playpause {
+        position: relative;
+        width: 62px; height: 62px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: linear-gradient(150deg, #3bf58b 0%, #14c56f 48%, #0a9d5b 100%);
+        color: #052c1b;
+        box-shadow:
+          0 10px 26px rgba(16,185,129,0.42),
+          0 2px 6px rgba(0,0,0,0.35),
+          inset 0 1px 0 rgba(255,255,255,0.55),
+          inset 0 -6px 14px rgba(4,90,55,0.35);
+        transition:
+          transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+          box-shadow 0.22s ease,
+          filter 0.2s ease;
+      }
+      #amphion-lp-playpause::after {
+        content: '';
+        position: absolute;
+        inset: -7px;
+        border-radius: 50%;
+        border: 1px solid rgba(59,245,139,0.32);
+        opacity: 0;
+        transform: scale(0.86);
+        transition: opacity 0.22s ease, transform 0.22s ease;
+        pointer-events: none;
+      }
+      #amphion-lp-playpause:hover {
+        transform: translateY(-1px) scale(1.05);
+        filter: brightness(1.07);
+        box-shadow:
+          0 16px 34px rgba(16,185,129,0.52),
+          0 3px 8px rgba(0,0,0,0.38),
+          inset 0 1px 0 rgba(255,255,255,0.62),
+          inset 0 -6px 14px rgba(4,90,55,0.32);
+      }
+      #amphion-lp-playpause:hover::after { opacity: 1; transform: scale(1); }
+      #amphion-lp-playpause:active { transform: scale(0.93); }
+      #amphion-lp-playpause:focus-visible {
+        outline: 2px solid #9df5c4;
+        outline-offset: 3px;
+      }
+      .amphion-lp-icon {
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 26px; height: 26px;
+        transform: translate(-50%, -50%) scale(1);
+        transition: opacity 0.16s ease, transform 0.18s ease;
+      }
+      .amphion-lp-icon-pause { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+      #amphion-lp-playpause.is-playing .amphion-lp-icon-play {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.6);
+      }
+      #amphion-lp-playpause.is-playing .amphion-lp-icon-pause {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      #amphion-lp-playpause.is-playing {
+        background: linear-gradient(150deg, #ffffff 0%, #eef3f0 55%, #d8e6de 100%);
+        color: #0b1f16;
+      }
+      #amphion-lp-progress-bar {
+        height: 5px;
+        background: rgba(255,255,255,0.12);
+        border-radius: 999px;
+        transition: height 0.18s ease;
+      }
+      #amphion-lp-progress-bar:hover { height: 7px; }
+      #amphion-lp-progress-fill {
+        border-radius: 999px;
+        background: linear-gradient(90deg, #0da45f, #3bf58b 62%, #9df5c4);
+        box-shadow: 0 0 14px rgba(59,245,139,0.45);
+        transition: width 0.25s linear;
+      }
+      #amphion-lp-times { font-size: 10.5px; color: #8b969b; letter-spacing: 0.3px; }
+      .amphion-lp-btn:hover {
+        background: rgba(255,255,255,0.1);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+      }
+      #amphion-lp-tracklist { padding: 14px clamp(14px, 2vw, 30px) 28px; }
+      .amphion-lp-folder-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(164px, 1fr));
+        gap: 12px;
+        padding: 12px 2px 20px;
+        border: 0;
+        margin: 0;
+      }
+      .amphion-lp-track {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        min-width: 0;
+        padding: 10px;
+        margin: 0;
+        overflow: hidden;
+        background: rgba(255,255,255,0.045);
+        border: 1px solid rgba(255,255,255,0.035);
+        border-radius: 10px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+      }
+      .amphion-lp-track:hover {
+        background: rgba(255,255,255,0.1);
+        border-color: rgba(255,255,255,0.1);
+        transform: translateY(-2px);
+      }
+      .amphion-lp-track.amphion-lp-active {
+        background: rgba(30,215,96,0.1);
+        border-color: rgba(30,215,96,0.42);
+      }
+      .amphion-lp-track-art {
+        position: relative;
+        display: grid;
+        width: 100%;
+        aspect-ratio: 1;
+        overflow: hidden;
+        place-items: center;
+        border-radius: 7px;
+        background:
+          radial-gradient(circle at 25% 20%, hsla(var(--cover-hue, 195), 68%, 66%, 0.82), transparent 58%),
+          linear-gradient(145deg, hsl(var(--cover-hue, 195), 42%, 31%), #11191e 82%);
+        box-shadow: 0 8px 18px rgba(0,0,0,0.3);
+      }
+      .amphion-lp-track-art-placeholder {
+        color: rgba(255,255,255,0.9);
+        font-size: clamp(30px, 4vw, 52px);
+        font-weight: 800;
+        letter-spacing: -2px;
+        text-shadow: 0 3px 18px rgba(0,0,0,0.35);
+      }
+      .amphion-lp-track-cover {
+        display: none;
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .amphion-lp-track-art.has-cover .amphion-lp-track-cover { display: block; }
+      .amphion-lp-track-art.has-cover .amphion-lp-track-art-placeholder { display: none; }
+      .amphion-lp-track-num {
+        position: absolute;
+        z-index: 1;
+        top: 8px;
+        left: 8px;
+        width: 25px;
+        min-width: 25px;
+        height: 25px;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        background: rgba(0,0,0,0.62);
+        border-radius: 50%;
+        text-align: center;
+        font-size: 10px;
+        backdrop-filter: blur(8px);
+      }
+      .amphion-lp-track-remove {
+        position: absolute;
+        z-index: 2;
+        top: 8px;
+        right: 8px;
+        width: 26px;
+        height: 26px;
+        color: #fff;
+        background: rgba(0,0,0,0.62);
+        border-radius: 50%;
+        opacity: 0;
+      }
+      .amphion-lp-track:hover .amphion-lp-track-remove,
+      .amphion-lp-track-remove:focus-visible { opacity: 1; }
+      .amphion-lp-track-info { width: 100%; padding: 0 2px; }
+      .amphion-lp-track-name { font-size: 13px; }
+      .amphion-lp-track-meta { font-size: 11px; color: #aeb8bd; }
+      .amphion-lp-track-dur { display: none; }
+      @media (max-width: 760px) {
+        #amphion-lp-header { align-items: flex-start; gap: 12px; padding: 12px; }
+        #amphion-lp-header h2 { font-size: 14px; }
+        #amphion-lp-header > div { flex-wrap: wrap; justify-content: flex-end; }
+        #amphion-lp-body { flex-direction: column; overflow-y: auto; }
+        #amphion-lp-sidebar {
+          width: auto;
+          min-width: 0;
+          padding: 18px 20px;
+          gap: 14px;
+          border-right: 0;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        #amphion-lp-cover { width: min(54vw, 230px); }
+        #amphion-lp-right-panel { min-height: 360px; }
+        #amphion-lp-list-header { flex-wrap: wrap; }
+        #amphion-lp-search, #amphion-lp-search:focus { width: min(46vw, 260px); }
+        .amphion-lp-folder-group { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 9px; }
       }
 
       /* Ecualizador animado (pistas activas) */
@@ -1000,6 +1261,122 @@
     }, 1000);
   };
 
+  // ==========================================================================
+  // BLOQUEO DE PROMOCIONES PREMIUM — elimina los carteles de suscripción
+  // que Spotify inserta dentro de álbumes, playlists y la página de inicio.
+  // ==========================================================================
+  const PREMIUM_PROMO_SELECTORS = [
+    '[data-testid="upsell-card"]',
+    '[data-testid="upsell-banner"]',
+    '[data-testid="premium-upsell"]',
+    '[data-testid="premium-upsell-banner"]',
+    '[data-testid="premium-banner"]',
+    '[data-testid="upgrade-banner"]',
+    '[data-testid="upgrade-button"]',
+    '[data-testid="ad-billboard"]',
+    '[data-testid="advertisement"]',
+    '[data-testid="ad-container"]',
+    '[class*="psell"]',
+    '[class*="remiumBanner"]',
+    '[class*="remiumUpsell"]'
+  ].join(',');
+
+  const PREMIUM_PROMO_TEXT_RE = /(premium por|meses por\s*\$?\s*\d|suscr[ií]bete a premium|prueba premium|premium individual|premium duo|premium familiar)/i;
+  const PREMIUM_PROMO_HEADER_EXCLUDE = 'header, [data-testid*="entityHeader" i], [data-testid="entityTitle"], [class*="entityHeader"], [class*="EntityHeader"], [class*="album-header"], [class*="AlbumHeader"]';
+  const PREMIUM_PROMO_EXCLUDE = `#amphion-local-player, #amphion-modal-backdrop, #amphion-toast, #amphion-lp-mini, [data-testid="tracklist-row"], [data-testid="now-playing-bar"], [data-testid="now-playing-widget"], ${PREMIUM_PROMO_HEADER_EXCLUDE}`;
+
+  const blockPremiumPromo = (el) => {
+    if (!el || el.nodeType !== 1) return false;
+    if (el.closest(PREMIUM_PROMO_EXCLUDE)) return false;
+    el.setAttribute('data-amphion-premium-blocked', 'true');
+    el.style.setProperty('display', 'none', 'important');
+    return true;
+  };
+
+  // Sube desde el texto hasta la tarjeta completa del anuncio, sin tocar la
+  // vista del álbum ni la lista de canciones. Evita lecturas de layout para no
+  // forzar reflows costosos en listas grandes.
+  const hidePremiumBannerAround = (el) => {
+    const main = document.querySelector('#main') || document.querySelector('#root');
+    if (!main || !el || !main.contains(el)) return;
+    if (el.closest(PREMIUM_PROMO_HEADER_EXCLUDE)) return;
+    let target = el;
+    for (let depth = 0; depth < 4; depth++) {
+      const parent = target.parentElement;
+      if (!parent || parent === main || parent === document.body) break;
+      if (parent.matches(PREMIUM_PROMO_HEADER_EXCLUDE)) break;
+      if (parent.querySelector('[data-testid="tracklist-row"]')) break;
+      if (parent.childElementCount > 40) break;
+      target = parent;
+    }
+    if (target.closest('[data-amphion-premium-blocked]')) return;
+    blockPremiumPromo(target);
+  };
+
+  const sweepPremiumPromos = (root = null) => {
+    try {
+      const scope = root && root.nodeType === 1
+        ? root
+        : (document.querySelector('#main') || document.body);
+      if (!scope || (scope.closest && scope.closest(PREMIUM_PROMO_EXCLUDE))) return;
+
+      scope.querySelectorAll(PREMIUM_PROMO_SELECTORS).forEach(blockPremiumPromo);
+      if (!scope.querySelectorAll) return;
+
+      const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, null);
+      let node;
+      let found = 0;
+      while (found < 4 && (node = walker.nextNode())) {
+        const value = node.nodeValue;
+        if (!value || value.length > 200) continue;
+        // Prefiltro barato: evita evaluar la expresión regular en cada nodo.
+        if (value.indexOf('remium') === -1 && value.indexOf('MESES') === -1 && value.indexOf('meses') === -1) continue;
+        if (!PREMIUM_PROMO_TEXT_RE.test(value)) continue;
+        const el = node.parentElement;
+        if (!el || el.closest(`[data-amphion-premium-blocked], ${PREMIUM_PROMO_EXCLUDE}`)) continue;
+        hidePremiumBannerAround(el);
+        found++;
+      }
+    } catch (e) {}
+  };
+
+  let premiumPromoDirty = true;
+
+  const startPremiumPromoBlocker = () => {
+    sweepPremiumPromos();
+    let scheduled = false;
+    const queue = new Set();
+    const flush = () => {
+      scheduled = false;
+      const nodes = Array.from(queue);
+      queue.clear();
+      nodes.forEach((node) => sweepPremiumPromos(node));
+      document.querySelectorAll(PREMIUM_PROMO_SELECTORS).forEach(blockPremiumPromo);
+      premiumPromoDirty = false;
+    };
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === 1) queue.add(node);
+        }
+      }
+      if (queue.size) premiumPromoDirty = true;
+      if (scheduled || queue.size === 0) return;
+      scheduled = true;
+      setTimeout(flush, 350);
+    });
+    const target = document.querySelector('#main') || document.body;
+    try {
+      observer.observe(target, { childList: true, subtree: true });
+    } catch (e) {}
+    // Red de seguridad: sólo re-analiza si el DOM cambió desde el último barrido.
+    setInterval(() => {
+      if (!premiumPromoDirty) return;
+      sweepPremiumPromos();
+      premiumPromoDirty = false;
+    }, 5000);
+  };
+
   // Notificación flotante Toast
   const showToast = (msg, isSuccess = true) => {
     let toast = document.getElementById('amphion-toast');
@@ -1151,7 +1528,7 @@
     }
   };
 
-  const VERSION = '0.7.9';
+  const VERSION = '0.7.12';
 
   const THEME_STORAGE_KEY = 'amphion-theme';
   let activeTheme = 'classic';
@@ -1450,14 +1827,24 @@
     }
   ];
 
+  let lastExternalUrl = '';
+  let lastExternalAt = 0;
   const openExternalUrl = (url) => {
+    if (!url) return;
+    // Un solo origen por apertura: el binding nativo (xdg-open) o, si no
+    // existe, window.open. Antes se usaban ambos y se abrían dos pestañas.
+    const now = Date.now();
+    if (url === lastExternalUrl && now - lastExternalAt < 1500) return;
+    lastExternalUrl = url;
+    lastExternalAt = now;
     try {
       if (typeof window.__mintPlayerPost === 'function') {
         window.__mintPlayerPost(JSON.stringify({ action: 'open_url', url }));
+        return;
       }
     } catch (e) {}
     try {
-      window.open(url, '_blank');
+      window.open(url, '_blank', 'noopener');
     } catch (e) {}
   };
 
@@ -1684,6 +2071,52 @@
     let selectedFolder = '';  // '' = todas las carpetas
     let metaProbeToken = 0;
     let metaAudio = null;
+    let artworkQueue = [];
+    let artworkWorkers = 0;
+    let artworkUrls = new Map();
+    const MAX_COVER_FILE_BYTES = 12 * 1024 * 1024;
+
+    const isAudioFile = (file) => !!file
+      && (/\.(mp3|flac|ogg|wav|aac|m4a|opus|wma)$/i.test(file.name || '')
+        || (file.type || '').startsWith('audio/'));
+
+    const isCoverImage = (file) => !!file
+      && /\.(jpe?g|png|webp)$/i.test(file.name || '')
+      && (!Number.isFinite(file.size) || file.size <= MAX_COVER_FILE_BYTES);
+
+    const coverHueFor = (track) => Array.from(`${track.artist || ''}${track.name || ''}`)
+      .reduce((value, char) => ((value * 31) + char.charCodeAt(0)) % 360, 0);
+
+    const folderForFile = (file, fallback = '') => {
+      if (file && file._folderPath) return file._folderPath;
+      const relativePath = file && file.webkitRelativePath;
+      if (relativePath) return relativePath.split('/').slice(0, -1).join('/') || fallback;
+      return fallback || activeFolderName;
+    };
+
+    const coverNameRank = (file) => {
+      const base = String(file.name || '').split('/').pop().replace(/\.[^.]+$/, '');
+      if (/^(cover|front|folder|album.?art|artwork)$/i.test(base)) return 0;
+      if (/^(cover|front|folder|album|artwork)[ _.-]/i.test(base)) return 1;
+      return 2;
+    };
+
+    const selectFolderCover = (imagesByFolder, folder) => {
+      let path = folder || '';
+      while (path) {
+        const candidates = imagesByFolder.get(path) || [];
+        if (candidates.length) {
+          const named = candidates.filter((file) => coverNameRank(file) < 2)
+            .sort((a, b) => coverNameRank(a) - coverNameRank(b));
+          if (named.length) return named[0];
+          if (candidates.length === 1) return candidates[0];
+        }
+        const separator = path.lastIndexOf('/');
+        if (separator < 0) break;
+        path = path.slice(0, separator);
+      }
+      return null;
+    };
 
     // Persistencia de directorio de música en IndexedDB
     const openDb = () => new Promise((resolve, reject) => {
@@ -1857,6 +2290,11 @@
         audio.addEventListener('ended', onEnded);
         audio.addEventListener('loadedmetadata', onMetaLoaded);
         audio.addEventListener('error', onAudioError);
+        audio.addEventListener('playing', () => {
+          if (usingWebAudio) return;
+          isPlaying = true;
+          updatePlayUI();
+        });
         audio.volume = 0.85;
       }
       return audio;
@@ -1864,18 +2302,17 @@
 
     const onAudioError = async () => {
       const a = getAudio();
-      const srcAttr = a.getAttribute('src');
-      if (!srcAttr || currentIdx < 0 || currentIdx >= tracks.length || usingWebAudio) return;
+      // Sólo un fallo real del elemento justifica el fallback; los abortos
+      // transitorios de load() no deben decodificar la pista completa.
+      if (!a.error || currentIdx < 0 || currentIdx >= tracks.length || usingWebAudio) return;
       const t = tracks[currentIdx];
       const sessionSnapshot = playSession;
-      if (isPlaying || sessionSnapshot > 0) {
-        const ok = await playViaWebAudio(t, sessionSnapshot);
-        if (!ok && sessionSnapshot === playSession) {
-          const errMsg = a.error ? `código ${a.error.code}` : 'formato no compatible';
-          showToast(`⚠ No se pudo reproducir "${t.name}" (${errMsg})`);
-          isPlaying = false;
-          updatePlayUI();
-        }
+      const ok = await playViaWebAudio(t, sessionSnapshot);
+      if (!ok && sessionSnapshot === playSession) {
+        const errMsg = a.error ? `código ${a.error.code}` : 'formato no compatible';
+        showToast(`⚠ No se pudo reproducir "${t.name}" (${errMsg})`);
+        isPlaying = false;
+        updatePlayUI();
       }
     };
 
@@ -1894,14 +2331,96 @@
       waOffset = 0;
       currentIdx = idx;
       const t = tracks[idx];
-      ensureTrackUrl(t);
+      const url = ensureTrackUrl(t);
       const a = getAudio();
-      a.pause();
-      a.removeAttribute('src');
-      a.src = t.url;    // re-assign forces browser to pick up new blob URL
-      a.load();         // critical: re-initialize the media element
+      if (a.src !== url) {
+        a.pause();
+        a.src = url;   // Asignar la nueva fuente ya reinicia el elemento.
+        a.load();
+        try {
+          a.currentTime = 0;
+        } catch (e) {}
+      }
       updateProgressUI(0, isFinite(t.duration) ? t.duration : 0);
       updateTrackUI();
+    };
+
+    // Espera a que el elemento tenga datos suficientes para sonar y resuelve
+    // sin lanzar excepciones, para poder reintentar play() con seguridad.
+    const waitForPlayable = (a, timeoutMs = 6000) => new Promise((resolve) => {
+      if (a.readyState >= 2) {
+        resolve(true);
+        return;
+      }
+      let settled = false;
+      let timer = null;
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        a.removeEventListener('loadeddata', onReady);
+        a.removeEventListener('canplay', onReady);
+        a.removeEventListener('error', onError);
+        resolve(ok);
+      };
+      const onReady = () => finish(true);
+      const onError = () => finish(false);
+      timer = setTimeout(() => finish(a.readyState >= 1), timeoutMs);
+      a.addEventListener('loadeddata', onReady);
+      a.addEventListener('canplay', onReady);
+      a.addEventListener('error', onError);
+    });
+
+    // Confirma que el navegador realmente arrancó: algunas versiones de
+    // Chromium resuelven play() y dejan el elemento en pausa.
+    const confirmPlayback = (a, timeoutMs = 1000) => new Promise((resolve) => {
+      if (!a.paused) {
+        resolve(true);
+        return;
+      }
+      let settled = false;
+      let timer = null;
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        a.removeEventListener('playing', onPlaying);
+        a.removeEventListener('timeupdate', onPlaying);
+        resolve(ok);
+      };
+      const onPlaying = () => finish(!a.paused);
+      timer = setTimeout(() => finish(!a.paused), timeoutMs);
+      a.addEventListener('playing', onPlaying);
+      a.addEventListener('timeupdate', onPlaying);
+    });
+
+    // Reproduce el audio reintentando si el navegador aborta la petición
+    // mientras termina de cargar el blob (causa del "no arranca al primer click").
+    const startMediaPlayback = async (a, sessionSnapshot) => {
+      // Un error previo deja el elemento en NETWORK_NO_SOURCE: reiniciar la
+      // carga permite que el primer click vuelva a intentarlo con limpio.
+      if (a.error) {
+        try {
+          a.load();
+        } catch (e) {}
+      }
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (sessionSnapshot !== playSession) return 'stale';
+        const ready = await waitForPlayable(a);
+        if (sessionSnapshot !== playSession) return 'stale';
+        if (!ready && a.readyState < 1) return 'error';
+        try {
+          await a.play();
+          if (sessionSnapshot !== playSession) return 'stale';
+          if (await confirmPlayback(a) && sessionSnapshot === playSession) return 'playing';
+        } catch (err) {
+          if (sessionSnapshot !== playSession) return 'stale';
+          if (err && err.name === 'AbortError' && attempt < 2) continue;
+          console.warn('LocalPlayer HTMLAudio error:', err);
+          return 'error';
+        }
+      }
+      return a.paused ? 'error' : 'playing';
     };
 
     const play = (idx) => {
@@ -1915,12 +2434,16 @@
       const t = tracks[currentIdx];
       const sessionSnapshot = ++playSession;
 
-      // Pausar Spotify Web Player si está sonando para no mezclar audios
-      try {
-        if (window.Amphion && typeof window.Amphion.pause === 'function') {
-          window.Amphion.pause();
-        }
-      } catch (e) {}
+      // Pausar Spotify Web Player después de arrancar el audio local: recorrer
+      // el árbol React de Spotify es costoso y no debe retrasar el gesto de play.
+      const pauseSpotifyPlayer = () => {
+        try {
+          if (window.Amphion && typeof window.Amphion.pause === 'function') {
+            window.Amphion.pause();
+          }
+        } catch (e) {}
+      };
+      setTimeout(pauseSpotifyPlayer, 0);
 
       if (usingWebAudio && waBuffer) {
         if (waCtx && waCtx.state === 'suspended') waCtx.resume().catch(() => {});
@@ -1931,29 +2454,29 @@
       }
 
       stopWebAudio();
-      ensureTrackUrl(t);
+      const url = ensureTrackUrl(t);
       const a = getAudio();
-      if (a.src !== t.url) {
-        a.src = t.url;
+      if (a.src !== url) {
+        a.src = url;
         a.load();
       }
 
-      const playPromise = a.play();
-      isPlaying = true;
+      isPlaying = true; // Respuesta visual inmediata; se revierte si falla.
       updatePlayUI();
-      Promise.resolve(playPromise).then(() => {
+      startMediaPlayback(a, sessionSnapshot).then(async (result) => {
         if (sessionSnapshot !== playSession) return;
-        isPlaying = true;
-        updatePlayUI();
-      }).catch(async (err) => {
-        if (sessionSnapshot !== playSession) return;
-        if (err && err.name === 'AbortError') return;
-        console.warn('LocalPlayer HTMLAudio error, intentando WebAudio:', err);
+        if (result === 'playing') {
+          isPlaying = true;
+          updatePlayUI();
+          return;
+        }
+        if (result === 'stale') return;
         const ok = await playViaWebAudio(t, sessionSnapshot);
-        if (!ok && sessionSnapshot === playSession) {
+        if (sessionSnapshot !== playSession) return;
+        if (!ok) {
           isPlaying = false;
           updatePlayUI();
-          showToast(`⚠ Error al reproducir "${t.name}": ${err ? err.message : 'audio bloqueado'}`);
+          showToast(`⚠ Error al reproducir "${t.name}": audio bloqueado o formato no compatible`);
         }
       });
     };
@@ -2116,13 +2639,107 @@
       setTimeout(step, 120);
     };
 
+    const acquireArtworkUrl = (blob) => {
+      const cached = artworkUrls.get(blob);
+      if (cached) {
+        cached.references++;
+        return cached.url;
+      }
+      const entry = { url: URL.createObjectURL(blob), references: 1 };
+      artworkUrls.set(blob, entry);
+      return entry.url;
+    };
+
+    const releaseTrackArtwork = (track) => {
+      if (!track || !track.coverAsset) return;
+      const entry = artworkUrls.get(track.coverAsset);
+      if (entry && --entry.references <= 0) {
+        URL.revokeObjectURL(entry.url);
+        artworkUrls.delete(track.coverAsset);
+      }
+      track.coverAsset = null;
+      track.coverUrl = null;
+    };
+
+    const updateArtworkUI = (track) => {
+      const trackIndex = tracks.indexOf(track);
+      if (trackIndex < 0) return;
+      const imageUrl = track.coverUrl || '';
+      const tile = document.querySelector(
+        `.amphion-lp-track[data-idx="${trackIndex}"] .amphion-lp-track-art`
+      );
+      if (tile) {
+        const image = tile.querySelector('.amphion-lp-track-cover');
+        tile.classList.toggle('has-cover', !!imageUrl);
+        if (image && imageUrl) image.src = imageUrl;
+      }
+      if (tracks[currentIdx] !== track) return;
+      const cover = document.getElementById('amphion-lp-cover');
+      const image = document.getElementById('amphion-lp-cover-image');
+      if (cover) cover.classList.toggle('has-art', !!imageUrl);
+      if (image) {
+        if (imageUrl) image.src = imageUrl;
+        else image.removeAttribute('src');
+      }
+    };
+
+    const finishArtworkJob = (job, found) => {
+      job.batch.found += found ? 1 : 0;
+      job.batch.finished++;
+      if (job.batch.finished === job.batch.total) {
+        showToast(`🖼 Carátulas detectadas: ${job.batch.found}/${job.batch.total}; las demás usan portada generada.`);
+      }
+    };
+
+    const runArtworkWorker = async () => {
+      while (artworkQueue.length) {
+        const job = artworkQueue.shift();
+        const track = job.track;
+        if (!track || track.removed) {
+          finishArtworkJob(job, false);
+          continue;
+        }
+        let imageBlob = null;
+        try {
+          const reader = window.AmphionLocalArtwork;
+          if (reader && track.file) imageBlob = await reader.readEmbeddedArtwork(track.file);
+        } catch (e) {
+          console.warn('No se pudo leer la carátula embebida:', track.name, e);
+        }
+        if (!imageBlob && track.coverFile) imageBlob = track.coverFile;
+        if (!track.removed && imageBlob) {
+          try {
+            track.coverAsset = imageBlob;
+            track.coverUrl = acquireArtworkUrl(imageBlob);
+            updateArtworkUI(track);
+          } catch (e) {
+            track.coverAsset = null;
+            track.coverUrl = null;
+            console.warn('No se pudo mostrar la carátula:', track.name, e);
+          }
+        }
+        finishArtworkJob(job, !!track.coverUrl);
+      }
+      artworkWorkers--;
+    };
+
+    const startArtworkProbe = (newTracks) => {
+      if (!newTracks || newTracks.length === 0) return;
+      const batch = { total: newTracks.length, finished: 0, found: 0 };
+      newTracks.forEach((track) => artworkQueue.push({ track, batch }));
+      while (artworkWorkers < 2 && artworkQueue.length) {
+        artworkWorkers++;
+        runArtworkWorker();
+      }
+    };
+
     // Escaneo recursivo de directorios con File System Access API
     const scanDirectory = async (handle, path = '') => {
       const files = [];
       try {
         for await (const entry of handle.values()) {
           if (entry.kind === 'file') {
-            if (/\.(mp3|flac|ogg|wav|aac|m4a|opus|wma)$/i.test(entry.name)) {
+            if (/\.(mp3|flac|ogg|wav|aac|m4a|opus|wma|jpe?g|png|webp)$/i.test(entry.name)) {
               try {
                 const file = await entry.getFile();
                 file._folderPath = path || handle.name;
@@ -2146,7 +2763,7 @@
         return new Promise((res) => {
           entry.file((f) => {
             f._folderPath = path || 'Música';
-            res([f]);
+            res(isAudioFile(f) || isCoverImage(f) ? [f] : []);
           }, () => res([]));
         });
       } else if (entry.isDirectory) {
@@ -2210,7 +2827,7 @@
       }
 
       const files = await scanDirectory(handle, handle.name);
-      if (files.length === 0) {
+      if (!files.some(isAudioFile)) {
         showToast(`⚠ No se encontraron canciones de audio en ${handle.name}`);
         return;
       }
@@ -2232,25 +2849,35 @@
 
     const addFiles = (files, defaultFolder = '') => {
       const newTracks = [];
+      const inputFiles = Array.from(files || []);
+      const imagesByFolder = new Map();
+      inputFiles.filter(isCoverImage).forEach((file) => {
+        const folder = folderForFile(file, defaultFolder);
+        if (!imagesByFolder.has(folder)) imagesByFolder.set(folder, []);
+        imagesByFolder.get(folder).push(file);
+      });
       const existingKeys = new Set(tracks.map((t) => `${t.folder || ''}:::${t.name}:::${t.artist}`));
 
-      Array.from(files).forEach((file) => {
-        if (!file.type.startsWith('audio/') && !/\.(mp3|flac|ogg|wav|aac|m4a|opus|wma)$/i.test(file.name)) {
-          return;
-        }
+      inputFiles.filter(isAudioFile).forEach((file) => {
         const { artist, title } = guessArtistAndTitle(file.name);
-        let folder = file._folderPath || '';
-        if (!folder && file.webkitRelativePath) {
-          const parts = file.webkitRelativePath.split('/');
-          folder = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
-        }
-        if (!folder) folder = defaultFolder || activeFolderName;
+        const folder = folderForFile(file, defaultFolder);
 
         const key = `${folder}:::${title}:::${artist}`;
         if (existingKeys.has(key)) return; // Evitar duplicados
         existingKeys.add(key);
 
-        newTracks.push({ file, name: title, artist, folder, duration: Infinity, url: null });
+        newTracks.push({
+          file,
+          name: title,
+          artist,
+          folder,
+          duration: Infinity,
+          url: null,
+          coverFile: selectFolderCover(imagesByFolder, folder),
+          coverUrl: null,
+          coverAsset: null,
+          removed: false
+        });
       });
 
       if (newTracks.length === 0 && tracks.length === 0) {
@@ -2267,6 +2894,7 @@
         loadTrack(0);
       }
       if (newTracks.length > 0) {
+        startArtworkProbe(newTracks);
         startMetaProbe();
         showToast(`🎵 ${newTracks.length} canción${newTracks.length > 1 ? 'es' : ''} cargada${newTracks.length > 1 ? 's' : ''} en carpetas`);
       }
@@ -2274,7 +2902,10 @@
 
     const removeTrack = (idx) => {
       if (idx < 0 || idx >= tracks.length) return;
-      if (tracks[idx].url) URL.revokeObjectURL(tracks[idx].url);
+      const removedTrack = tracks[idx];
+      removedTrack.removed = true;
+      if (removedTrack.url) URL.revokeObjectURL(removedTrack.url);
+      releaseTrackArtwork(removedTrack);
       tracks.splice(idx, 1);
       if (tracks.length === 0) {
         pause();
@@ -2296,7 +2927,11 @@
     const clearAll = () => {
       metaProbeToken++;
       pause();
-      tracks.forEach((t) => { if (t.url) URL.revokeObjectURL(t.url); });
+      tracks.forEach((t) => {
+        t.removed = true;
+        if (t.url) URL.revokeObjectURL(t.url);
+        releaseTrackArtwork(t);
+      });
       tracks = [];
       currentIdx = -1;
       selectedFolder = '';
@@ -2352,7 +2987,7 @@
             </button>
             <label id="amphion-lp-add-label" style="background:#1ed760;border:none;border-radius:500px;padding:7px 16px;font-size:12px;font-weight:800;color:#121212;cursor:pointer;transition:transform 0.12s,background 0.12s;" title="Añadir canciones sueltas">
               + Añadir archivos
-              <input id="amphion-lp-file-input" type="file" multiple accept="audio/*,.mp3,.flac,.ogg,.wav,.aac,.m4a,.opus,.wma" style="display:none;">
+              <input id="amphion-lp-file-input" type="file" multiple accept="audio/*,image/jpeg,image/png,image/webp,.mp3,.flac,.ogg,.wav,.aac,.m4a,.opus,.wma" style="display:none;">
             </label>
             <button id="amphion-lp-close" title="Cerrar reproductor local">✕</button>
           </div>
@@ -2361,6 +2996,7 @@
           <!-- Sidebar: Arte + Metadata + Controles de audio -->
           <div id="amphion-lp-sidebar">
             <div id="amphion-lp-cover">
+              <img id="amphion-lp-cover-image" alt="Carátula del álbum">
               <svg viewBox="0 0 24 24" width="76" height="76" fill="none" stroke="#1ed760" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.9;">
                 <circle cx="12" cy="12" r="9"/>
                 <circle cx="12" cy="12" r="2.5" fill="#1ed760"/>
@@ -2394,7 +3030,10 @@
                   <path d="M6 6h2v12H6V6zm10 0L10 12l6 6V6z"/>
                 </svg>
               </button>
-              <button id="amphion-lp-playpause" title="Reproducir / Pausar">▶</button>
+              <button id="amphion-lp-playpause" title="Reproducir / Pausar" aria-label="Reproducir">
+                <svg class="amphion-lp-icon amphion-lp-icon-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72a1 1 0 0 0 1.54.84l10.3-6.86a1 1 0 0 0 0-1.68L9.54 4.3A1 1 0 0 0 8 5.14z"/></svg>
+                <svg class="amphion-lp-icon amphion-lp-icon-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="5" width="4" height="14" rx="1.4"/><rect x="13.5" y="5" width="4" height="14" rx="1.4"/></svg>
+              </button>
               <button class="amphion-lp-btn" id="amphion-lp-next" title="Pista siguiente">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                   <path d="M16 6h2v12h-2V6zM4 18l6-6-6-6v12z"/>
@@ -2767,6 +3406,8 @@
 
     const buildTrackRow = (t, originalIdx, displayNum) => {
       const rowNum = displayNum !== undefined ? displayNum : (originalIdx + 1);
+      const initials = (t.name || '♫').trim().split(/\s+/).slice(0, 2)
+        .map((word) => word.charAt(0)).join('').toUpperCase() || '♫';
       const row = document.createElement('div');
       row.className = `amphion-lp-track${originalIdx === currentIdx ? ' amphion-lp-active' : ''}`;
       row.dataset.idx = originalIdx;
@@ -2778,15 +3419,29 @@
         : `${rowNum}`;
 
       row.innerHTML = `
-        <div class="amphion-lp-track-num${isActive && isPlaying ? ' playing' : ''}">${numContent}</div>
+        <div class="amphion-lp-track-art" style="--cover-hue:${coverHueFor(t)}">
+          <div class="amphion-lp-track-art-placeholder">${esc(initials)}</div>
+          <img class="amphion-lp-track-cover" alt="Carátula de ${esc(t.name)}" loading="lazy" decoding="async">
+          <div class="amphion-lp-track-num${isActive && isPlaying ? ' playing' : ''}">${numContent}</div>
+          <button class="amphion-lp-track-remove" data-idx="${originalIdx}" title="Quitar de la lista" aria-label="Quitar ${esc(t.name)}">✕</button>
+        </div>
         <div class="amphion-lp-track-info">
           <div class="amphion-lp-track-name">${esc(t.name)}</div>
           <div class="amphion-lp-track-meta">${esc(t.artist || 'Música local')}</div>
         </div>
         <div class="amphion-lp-track-dur" data-dur-idx="${originalIdx}">${isFinite(t.duration) ? fmtTime(t.duration) : '—'}</div>
-        <button class="amphion-lp-track-remove" data-idx="${originalIdx}" title="Quitar de la lista">✕</button>
       `;
 
+      const artTile = row.querySelector('.amphion-lp-track-art');
+      const coverImage = row.querySelector('.amphion-lp-track-cover');
+      if (t.coverUrl) {
+        artTile.classList.add('has-cover');
+        coverImage.src = t.coverUrl;
+      }
+      coverImage.onerror = () => {
+        releaseTrackArtwork(t);
+        updateArtworkUI(t);
+      };
       row.onclick = (e) => {
         if (e.target.classList.contains('amphion-lp-track-remove')) return;
         if (originalIdx === currentIdx) toggle();
@@ -2806,6 +3461,20 @@
       const title = document.getElementById('amphion-lp-title');
       const sub = document.getElementById('amphion-lp-subtitle');
       const badge = document.getElementById('amphion-lp-folder-badge');
+      const cover = document.getElementById('amphion-lp-cover');
+      const coverImage = document.getElementById('amphion-lp-cover-image');
+      const hasCover = !!(t && t.coverUrl);
+      if (cover && t) cover.style.setProperty('--cover-hue', coverHueFor(t));
+      if (cover) cover.classList.toggle('has-art', hasCover);
+      if (coverImage) {
+        if (hasCover && coverImage.src !== t.coverUrl) coverImage.src = t.coverUrl;
+        else if (!hasCover) coverImage.removeAttribute('src');
+        coverImage.onerror = () => {
+          if (!t || !t.coverUrl) return;
+          releaseTrackArtwork(t);
+          updateArtworkUI(t);
+        };
+      }
       if (title) title.textContent = t ? t.name : 'Sin reproducción';
       if (sub) sub.textContent = t ? (t.artist || 'Música local') : 'Selecciona o arrastra una pista';
       if (badge) {
@@ -2827,13 +3496,19 @@
     const updatePlayUI = () => {
       if (!uiReady) return;
       const btn = document.getElementById('amphion-lp-playpause');
-      if (btn) btn.textContent = isPlaying ? '⏸' : '▶';
+      if (btn) {
+        btn.classList.toggle('is-playing', isPlaying);
+        btn.setAttribute('aria-label', isPlaying ? 'Pausar' : 'Reproducir');
+      }
 
       const cover = document.getElementById('amphion-lp-cover');
       if (cover) cover.classList.toggle('playing', isPlaying);
 
       const miniBtn = document.getElementById('amphion-lp-mini-play');
-      if (miniBtn) miniBtn.textContent = isPlaying ? '⏸' : '▶';
+      if (miniBtn) {
+        miniBtn.classList.toggle('is-playing', isPlaying);
+        miniBtn.textContent = isPlaying ? '⏸' : '▶';
+      }
 
       syncTrackStateUI();
 
@@ -3656,6 +4331,7 @@
   injectNowPlayingSpotDownBtn();
   LocalPlayer.injectMiniPlayer();
   startAdGuard();
+  startPremiumPromoBlocker();
   try {
     applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || 'classic', true);
   } catch (e) {
@@ -3713,6 +4389,9 @@
     adGuard: {
       isAdPlaying,
       skip: skipAdvertisement
+    },
+    premiumGuard: {
+      sweep: sweepPremiumPromos
     },
     setTheme: (name) => applyTheme(name),
     getTheme: () => activeTheme,

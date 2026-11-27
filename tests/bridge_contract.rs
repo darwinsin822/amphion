@@ -1,6 +1,7 @@
 //! Contrato de la capa Amphion inyectada en el Web Player de Spotify.
 
 const BRIDGE: &str = include_str!("../src/bridge.js");
+const LOCAL_ARTWORK: &str = include_str!("../src/local_artwork.js");
 
 #[test]
 fn capa_amphion_sin_servidor_local() {
@@ -210,15 +211,53 @@ fn reproductor_local_vista_carpetas() {
 fn reproductor_local_audio_funcional() {
     // a.load() es obligatorio para que el audio element cargue cada blob URL
     assert!(BRIDGE.contains("a.load()"));
-    assert!(BRIDGE.contains("a.src = t.url"));
+    assert!(BRIDGE.contains("a.src = url"));
     assert!(BRIDGE.contains("playViaWebAudio"));
     assert!(BRIDGE.contains("syncTrackStateUI"));
+    // No se debe vaciar el src antes de asignar: genera abortos y errores falsos.
+    assert!(!BRIDGE.contains("a.removeAttribute('src')"));
 }
 
 #[test]
-fn reproductor_local_actualiza_controles_sin_esperar_a_play() {
-    assert!(BRIDGE.contains("const playPromise = a.play();"));
-    assert!(BRIDGE.contains("isPlaying = true;\n      updatePlayUI();\n      Promise.resolve(playPromise)"));
+fn reproductor_local_arranca_al_primer_click() {
+    assert!(BRIDGE.contains("waitForPlayable"));
+    assert!(BRIDGE.contains("startMediaPlayback"));
+    assert!(BRIDGE.contains("err.name === 'AbortError' && attempt < 2"));
+    // La reproducción no puede depender de un play() único y frágil.
+    assert!(!BRIDGE.contains("const playPromise = a.play();"));
+    assert!(BRIDGE.contains("if (!a.error || currentIdx < 0"));
+}
+
+#[test]
+fn spotdown_abre_una_sola_pestana() {
+    // Deduplicación inmediata para clics/atajos repetidos.
+    assert!(BRIDGE.contains("lastExternalUrl"));
+    assert!(BRIDGE.contains("now - lastExternalAt < 1500"));
+    // Un solo mecanismo por apertura: binding nativo con retorno temprano.
+    assert!(BRIDGE.contains(
+        "window.__mintPlayerPost(JSON.stringify({ action: 'open_url', url }));\n        return;"
+    ));
+}
+
+#[test]
+fn boton_reproductor_moderno() {
+    assert!(BRIDGE.contains("amphion-lp-icon-play"));
+    assert!(BRIDGE.contains("amphion-lp-icon-pause"));
+    assert!(BRIDGE.contains("classList.toggle('is-playing', isPlaying)"));
+}
+
+#[test]
+fn bloquea_promociones_premium_del_web_player() {
+    assert!(BRIDGE.contains("PREMIUM_PROMO_SELECTORS"));
+    assert!(BRIDGE.contains("[data-amphion-premium-blocked]"));
+    assert!(BRIDGE.contains("upsell-banner"));
+    assert!(BRIDGE.contains("startPremiumPromoBlocker"));
+    assert!(BRIDGE.contains("MutationObserver"));
+    assert!(BRIDGE.contains("premiumGuard"));
+    // Nunca debe ocultar el reproductor local, la lista ni la cabecera del álbum.
+    assert!(BRIDGE.contains("#amphion-local-player, #amphion-modal-backdrop"));
+    assert!(BRIDGE.contains("[data-testid=\"tracklist-row\"]"));
+    assert!(BRIDGE.contains("[data-testid=\"entityTitle\"]"));
 }
 
 #[test]
@@ -230,6 +269,30 @@ fn reproductor_local_shuffle_respeta_repeticion_desactivada() {
 fn reproductor_local_inserta_listas_en_lote() {
     assert!(BRIDGE.contains("document.createDocumentFragment()"));
     assert!(BRIDGE.contains("container.appendChild(fragment)"));
+}
+
+#[test]
+fn caratulas_locales_detectan_formatos_embebidos_y_archivos_de_carpeta() {
+    for parser in [
+        "parseId3Artwork",
+        "parseFlacArtwork",
+        "parseMp4Artwork",
+        "parseOggArtwork",
+        "parseWmaArtwork",
+        "readEmbeddedArtwork",
+    ] {
+        assert!(LOCAL_ARTWORK.contains(parser), "falta el lector {parser}");
+    }
+    assert!(BRIDGE.contains("selectFolderCover"));
+    assert!(BRIDGE.contains("coverFile"));
+}
+
+#[test]
+fn caratulas_locales_se_muestran_en_portada_y_biblioteca() {
+    assert!(BRIDGE.contains("amphion-lp-cover-image"));
+    assert!(BRIDGE.contains("amphion-lp-track-cover"));
+    assert!(BRIDGE.contains("amphion-lp-track-art"));
+    assert!(BRIDGE.contains("startArtworkProbe"));
 }
 
 #[test]

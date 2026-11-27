@@ -6,7 +6,7 @@ use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
 
-const BRIDGE_JS: &str = include_str!("bridge.js");
+const BRIDGE_JS: &str = concat!(include_str!("local_artwork.js"), "\n", include_str!("bridge.js"));
 
 /// Endpoints de publicidad que el Web Player no necesita para reproducir música.
 const AD_URL_PATTERNS: &[&str] = &[

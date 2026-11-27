@@ -1,10 +1,10 @@
 # Amphion 🎵
 
-[![Descargar Amphion .deb](https://img.shields.io/badge/Descargar%20Amphion-v0.7.8%20.deb%20(Linux%20Mint%20%2F%20Ubuntu)-1DB954?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.8_amd64.deb)
+[![Descargar Amphion .deb](https://img.shields.io/badge/Descargar%20Amphion-v0.7.12%20.deb%20(Linux%20Mint%20%2F%20Ubuntu)-1DB954?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.12_amd64.deb)
 [![Última Versión](https://img.shields.io/github/v/release/darwinsin822/amphion?style=for-the-badge&color=1ed760)](https://github.com/darwinsin822/amphion/releases/latest)
 
 > 🚀 **¿Quieres instalar Amphion en tu equipo?**  
-> 👉 **[Descargar instalador directo (.deb v0.7.8)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.8_amd64.deb)** *(1.5 MB — compatible con Linux Mint, Ubuntu y Debian)*
+> 👉 **[Descargar instalador directo (.deb v0.7.12)](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.12_amd64.deb)** *(1.5 MB — compatible con Linux Mint, Ubuntu y Debian)*
 
 ---
 
@@ -28,7 +28,7 @@ Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spot
 
 * 🚀 **Un solo binario nativo:** sin Electron, sin servidor HTTP local y sin procesos auxiliares.
 * 🎧 **Base 100% Spotify Web Player:** la reproducción, la biblioteca y el catálogo son los oficiales de `open.spotify.com`.
-* 🎵 **Reproductor de Música Local / Descargada (Estética Spotify · v0.7.9):**
+* 🎵 **Reproductor de Música Local / Descargada (Estética Spotify · v0.7.12):**
   * 📁 **Detección Automática y Vista por Carpetas:** escaneo recursivo de directorios de música (`~/Música`, subcarpetas y `~/Descargas/Spotify`), barra rápida de carpetas, grupos colapsables y reproducción por carpeta.
   * 🔄 **Botón de Recargar Canciones Nuevas:** escanea de nuevo la carpeta seleccionada en un clic, detecta descargas recientes y las añade a la biblioteca sin duplicar.
   * 🔍 **Buscador en Tiempo Real:** filtra canciones por título, artista o subcarpeta al instante.
@@ -36,6 +36,9 @@ Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spot
   * ⌨️ **Acceso Rápido:** botón directo en la barra superior (`Música Local`), tarjeta en Ajustes o atajo global **`Alt + L`**.
   * 🎧 **Formatos Soportados:** `.mp3`, `.flac`, `.wav`, `.ogg`, `.m4a`, `.opus` y `.wma`.
   * 🎛️ **Controles Completos:** Play/Pausa, Shuffle, Repetición (Off / Todas / Una sola pista), volumen con silenciador y barra de progreso interactiva.
+  * 🖼️ **Carátulas Reales:** lee el arte incrustado (ID3/FLAC/MP4/OGG/WMA) y usa `cover/front/folder` de la carpeta como respaldo; la portada y las tarjetas muestran la imagen real o una cubierta generada.
+  * ▶️ **Botón principal moderno:** gradiente verde con iconos SVG que alternan Play/Pausa, anillo de foco y micro-animación al pulsar.
+  * ⚡ **Reproducción al primer clic:** espera a que el audio esté listo y reintenta si Chromium aborta la carga, sin quedarse en un estado falso de reproducción.
   * 📂 **Drag & Drop Inteligente:** arrastra carpetas completas o canciones desde Nemo, Nautilus o Dolphin directamente al reproductor.
   * 📊 **Ecualizador Visual:** barras animadas en verde Spotify sobre la pista que está sonando.
   * 🪟 **Mini-player Persistente:** si minimizas o cierras la ventana del reproductor, sigue sonando en un widget flotante en la esquina inferior.
@@ -50,6 +53,7 @@ Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spot
 * 🎨 **Motor de temas:** 16 paletas (Spotify, AMOLED, Nord, Dracula, Catppuccin, Vallenato Gold, Cyberpunk, Synthwave, Vaporwave, Miami Vice, Lime Punch, Magma, Aurora, Bubblegum, Electric Blue, Tropical) aplicadas sobre las variables CSS del Web Player y recordadas entre sesiones.
 * 🖼️ **Fondo personalizado:** elegí una imagen local, ajustá desenfoque y oscurecido; las superficies del reproductor se vuelven translúcidas para dejar ver el fondo.
 * 🛡️ **Bloqueo de publicidad:** bloqueo de endpoints de anuncios por CDP más un guardián que silencia y salta los cortes de voz.
+* 🚫 **Sin carteles Premium:** oculta las tarjetas y banners de suscripción que Spotify inserta en álbumes, playlists y la página de inicio, sin afectar la cabecera ni la lista de canciones.
 * 🛡️ **Zero Credentials Storage:** el inicio de sesión ocurre en la página oficial de Spotify; Amphion no guarda contraseñas.
 * 🔁 **Guardián CDP:** si Spotify recarga la SPA o se pierde el WebSocket, Amphion reconecta y reinyecta la interfaz automáticamente.
 * 📦 **Paquete nativo `.deb`:** instalación con un clic e integración en el menú de Linux Mint.
@@ -59,14 +63,14 @@ Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spot
 ## 📦 Instalación en Linux Mint / Ubuntu
 
 ### Opción 1: Descarga e Instalación Fácil (Recomendada)
-1. **[Descarga aquí el paquete `amphion_0.7.8_amd64.deb`](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.8_amd64.deb)**.
+1. **[Descarga aquí el paquete `amphion_0.7.12_amd64.deb`](https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.12_amd64.deb)**.
 2. Abre tu carpeta de **Descargas**, haz doble clic sobre el archivo descargado y presiona **«Instalar paquete»** (o con clic derecho > *Abrir con Instalador de paquetes GDebi*).
 3. ¡Listo! Abre **Amphion** desde el menú de inicio de tu sistema.
 
 #### O instala en 1 comando desde la terminal:
 ```bash
-wget https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.8_amd64.deb
-sudo apt install ./amphion_0.7.8_amd64.deb
+wget https://github.com/darwinsin822/amphion/releases/latest/download/amphion_0.7.12_amd64.deb
+sudo apt install ./amphion_0.7.12_amd64.deb
 ```
 
 ### Opción 2: Compilar desde el código fuente
