@@ -169,19 +169,22 @@ impl CdpSession {
 }
 
 pub async fn find_or_create_spotify_tab(port: u16) -> Result<String> {
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(500))
+        .build()?;
     let list_url = format!("http://127.0.0.1:{}/json/list", port);
 
     // Esperar a que Chrome responda en el puerto de depuración
     let mut targets: Vec<CdpTarget> = Vec::new();
-    for _ in 0..20 {
+    for attempt in 0..20 {
         if let Ok(resp) = client.get(&list_url).send().await {
             if let Ok(items) = resp.json::<Vec<CdpTarget>>().await {
                 targets = items;
                 break;
             }
         }
-        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        let delay_ms = 50 + attempt * 25;
+        tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
     }
 
     // Buscar una pestaña existente con Spotify

@@ -1,6 +1,6 @@
 [package]
 name = "amphion"
-version = "0.7.8"
+version = "0.7.9"
 edition = "2021"
 authors = ["Darwin Sin"]
 description = "Amphion - Spotify Web Player con temas, bloqueo de publicidad, descargador SpotDown y reproductor local para Linux Mint Cinnamon"

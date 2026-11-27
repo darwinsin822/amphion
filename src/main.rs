@@ -55,7 +55,6 @@ async fn main() -> Result<()> {
 
     println!("🚀 [1/3] Abriendo el Web Player oficial de Spotify (headless: {})...", headless);
     let _chrome = ChromeProcess::spawn(cdp_port, headless)?;
-    tokio::time::sleep(Duration::from_secs(2)).await;
 
     println!("🔍 [2/3] Conectando por CDP con la pestaña de Spotify...");
     let ws_url = find_or_create_spotify_tab(cdp_port).await?;

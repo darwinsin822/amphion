@@ -1,4 +1,4 @@
-// Amphion Bridge v0.7.8 - Spotify Web Player Controller, Local Player & Pure Streaming Engine
+// Amphion Bridge v0.7.9 - Spotify Web Player Controller, Local Player & Pure Streaming Engine
 // Diseñado para Linux Mint Cinnamon con arquitectura de máximo rendimiento (Zero Downloads)
 
 (() => {
@@ -1151,7 +1151,7 @@
     }
   };
 
-  const VERSION = '0.7.8';
+  const VERSION = '0.7.9';
 
   const THEME_STORAGE_KEY = 'amphion-theme';
   let activeTheme = 'classic';
@@ -1938,7 +1938,10 @@
         a.load();
       }
 
-      a.play().then(() => {
+      const playPromise = a.play();
+      isPlaying = true;
+      updatePlayUI();
+      Promise.resolve(playPromise).then(() => {
         if (sessionSnapshot !== playSession) return;
         isPlaying = true;
         updatePlayUI();
@@ -1956,6 +1959,8 @@
     };
 
     const pause = () => {
+      // Invalida promesas de play() o decodificaciones WebAudio aún pendientes.
+      playSession++;
       if (usingWebAudio && waCtx && waBuffer) {
         waOffset = Math.min(waBuffer.duration, (waCtx.currentTime - waStartTime) + waOffset);
         if (waSource) {
@@ -1995,7 +2000,12 @@
       }
       if (isShuffle) {
         const pos = shuffleOrder.indexOf(currentIdx);
-        const next = shuffleOrder[(pos + 1) % shuffleOrder.length];
+        const nextPos = pos + 1;
+        if (nextPos >= shuffleOrder.length && repeatMode !== 1) {
+          pause();
+          return;
+        }
+        const next = shuffleOrder[nextPos % shuffleOrder.length];
         play(next);
       } else {
         const next = (currentIdx + 1) % tracks.length;
@@ -2694,11 +2704,13 @@
       }
       showDropzone(false);
       container.innerHTML = '';
+      const fragment = document.createDocumentFragment();
 
       if (searchFilter) {
         allVisible.forEach((t, pos) => {
-          container.appendChild(buildTrackRow(t, t.originalIdx, pos + 1));
+          fragment.appendChild(buildTrackRow(t, t.originalIdx, pos + 1));
         });
+        container.appendChild(fragment);
         return;
       }
 
@@ -2739,7 +2751,7 @@
           }
           renderTrackList();
         };
-        container.appendChild(header);
+        fragment.appendChild(header);
 
         if (!isCollapsed) {
           const group = document.createElement('div');
@@ -2747,9 +2759,10 @@
           items.forEach((t, posInFolder) => {
             group.appendChild(buildTrackRow(t, t.originalIdx, posInFolder + 1));
           });
-          container.appendChild(group);
+          fragment.appendChild(group);
         }
       });
+      container.appendChild(fragment);
     };
 
     const buildTrackRow = (t, originalIdx, displayNum) => {

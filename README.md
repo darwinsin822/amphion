@@ -28,7 +28,7 @@ Amphion es un lanzador nativo en **Rust** que abre el Web Player oficial de Spot
 
 * 🚀 **Un solo binario nativo:** sin Electron, sin servidor HTTP local y sin procesos auxiliares.
 * 🎧 **Base 100% Spotify Web Player:** la reproducción, la biblioteca y el catálogo son los oficiales de `open.spotify.com`.
-* 🎵 **Reproductor de Música Local / Descargada (Estética Spotify · v0.7.8):**
+* 🎵 **Reproductor de Música Local / Descargada (Estética Spotify · v0.7.9):**
   * 📁 **Detección Automática y Vista por Carpetas:** escaneo recursivo de directorios de música (`~/Música`, subcarpetas y `~/Descargas/Spotify`), barra rápida de carpetas, grupos colapsables y reproducción por carpeta.
   * 🔄 **Botón de Recargar Canciones Nuevas:** escanea de nuevo la carpeta seleccionada en un clic, detecta descargas recientes y las añade a la biblioteca sin duplicar.
   * 🔍 **Buscador en Tiempo Real:** filtra canciones por título, artista o subcarpeta al instante.

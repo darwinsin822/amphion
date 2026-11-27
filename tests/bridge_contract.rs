@@ -216,6 +216,23 @@ fn reproductor_local_audio_funcional() {
 }
 
 #[test]
+fn reproductor_local_actualiza_controles_sin_esperar_a_play() {
+    assert!(BRIDGE.contains("const playPromise = a.play();"));
+    assert!(BRIDGE.contains("isPlaying = true;\n      updatePlayUI();\n      Promise.resolve(playPromise)"));
+}
+
+#[test]
+fn reproductor_local_shuffle_respeta_repeticion_desactivada() {
+    assert!(BRIDGE.contains("nextPos >= shuffleOrder.length && repeatMode !== 1"));
+}
+
+#[test]
+fn reproductor_local_inserta_listas_en_lote() {
+    assert!(BRIDGE.contains("document.createDocumentFragment()"));
+    assert!(BRIDGE.contains("container.appendChild(fragment)"));
+}
+
+#[test]
 fn reproductor_local_limpia_dominios() {
     // cleanName quita marcas de agua (spotdown.org, etc.) en cualquier posicion del nombre
     assert!(BRIDGE.contains("WATERMARKS"), "debe definir regex WATERMARKS para limpiar dominios");
@@ -224,4 +241,3 @@ fn reproductor_local_limpia_dominios() {
     assert!(BRIDGE.contains(".replace(WATERMARKS"), "cleanName debe aplicar WATERMARKS");
     assert!(BRIDGE.contains("[a-z0-9][a-z0-9-]*\\.[a-z]{2,4}"), "debe quitar dominio residual al final");
 }
-
